@@ -26,13 +26,12 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-bold text-white">Projects</h1>
           <p className="text-white/40 text-sm mt-1">All active client projects</p>
         </div>
-        <button
-          disabled
-          className="px-4 py-2 rounded-lg bg-white/10 text-white/40 text-sm font-medium cursor-not-allowed"
-          title="Coming in Session 5"
+        <Link
+          href="/admin/projects/new"
+          className="px-4 py-2 rounded-lg bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors"
         >
           + New Project
-        </button>
+        </Link>
       </div>
 
       {/* Empty State */}
