@@ -37,7 +37,7 @@ export default async function ProjectDetailPage({ params }: Props) {
       </div>
 
       {/* Tabs */}
-      <ProjectTabs project={project} />
+      <ProjectTabs project={project} projectId={project.id} />
 
     </div>
   );

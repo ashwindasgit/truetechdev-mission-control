@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 
 interface Project {
   id: string;
@@ -13,33 +14,48 @@ interface Project {
 
 interface Props {
   project: Project;
+  projectId: string;
 }
 
-const TABS = ['Overview', 'Tasks', 'Feed', 'Settings'];
+const TABS = [
+  { label: 'Overview', href: null },
+  { label: 'Tasks', href: 'tasks' },
+  { label: 'Feed', href: null },
+  { label: 'Settings', href: null },
+];
 
-export default function ProjectTabs({ project }: Props) {
+export default function ProjectTabs({ project, projectId }: Props) {
   const [activeTab, setActiveTab] = useState('Overview');
 
   return (
     <div>
       <div className="flex gap-1 border-b border-white/10 mb-8">
-        {TABS.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-              activeTab === tab
-                ? 'text-white border-white'
-                : 'text-white/40 border-transparent hover:text-white/70'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+        {TABS.map((tab) =>
+          tab.href ? (
+            <Link
+              key={tab.label}
+              href={`/admin/projects/${projectId}/${tab.href}`}
+              className="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-white/40 border-transparent hover:text-white/70"
+            >
+              {tab.label}
+            </Link>
+          ) : (
+            <button
+              key={tab.label}
+              onClick={() => setActiveTab(tab.label)}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                activeTab === tab.label
+                  ? 'text-white border-white'
+                  : 'text-white/40 border-transparent hover:text-white/70'
+              }`}
+            >
+              {tab.label}
+            </button>
+          )
+        )}
       </div>
 
       {activeTab === 'Overview' && <OverviewTab project={project} />}
-      {activeTab === 'Tasks' && <ComingSoon label="Tasks" />}
       {activeTab === 'Feed' && <ComingSoon label="Live Feed" />}
       {activeTab === 'Settings' && <ComingSoon label="Settings" />}
     </div>
