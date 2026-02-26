@@ -2,9 +2,24 @@
 
 import { useState } from 'react';
 
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+  pr_url: string | null;
+  position: number;
+}
+
+interface Module {
+  id: string;
+  name: string;
+  position: number;
+  tasks: Task[];
+}
+
 interface TaskBoardProps {
   projectId: string;
-  initialModules: any[];
+  initialModules: Module[];
 }
 
 const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
@@ -16,7 +31,7 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   failed:   { label: 'Failed',   classes: 'bg-red-500/20 text-red-300' },
 };
 
-function TaskRow({ task }: { task: any }) {
+function TaskRow({ task }: { task: Task }) {
   const status = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.backlog;
 
   return (
@@ -43,7 +58,7 @@ function TaskRow({ task }: { task: any }) {
 }
 
 export default function TaskBoard({ projectId, initialModules }: TaskBoardProps) {
-  const [modules, setModules] = useState(initialModules);
+  const [modules, setModules] = useState<Module[]>(initialModules);
   const [showAddModule, setShowAddModule] = useState(false);
   const [newModuleName, setNewModuleName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -160,7 +175,7 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
 
             {/* Task List */}
             <div className="space-y-2">
-              {mod.tasks?.map((task: any) => (
+              {mod.tasks?.map((task) => (
                 <TaskRow key={task.id} task={task} />
               ))}
             </div>
