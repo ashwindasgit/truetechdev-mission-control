@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ id: data.id }, { status: 201 });
 
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: 'Invalid request' },
       { status: 400 }

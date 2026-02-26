@@ -79,7 +79,7 @@ export default function NewProjectPage() {
       router.push('/admin');
       router.refresh();
 
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.');
       setLoading(false);
     }
