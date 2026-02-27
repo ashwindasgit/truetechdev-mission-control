@@ -12,13 +12,25 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, status, client_name, client_slug, created_at')
+    .select('id, name, status, client_name, client_slug, created_at, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date')
     .eq('id', id)
     .single();
 
   if (error || !project) {
     notFound();
   }
+
+  const { data: blockers } = await supabase
+    .from('blockers')
+    .select('id, project_id, title, waiting_on, status, created_at')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
+
+  const { data: changeRequests } = await supabase
+    .from('change_requests')
+    .select('id, project_id, title, description, status, hours_impact, created_at')
+    .eq('project_id', id)
+    .order('created_at', { ascending: false });
 
   return (
     <div className="p-8">
@@ -37,7 +49,12 @@ export default async function ProjectDetailPage({ params }: Props) {
       </div>
 
       {/* Tabs */}
-      <ProjectTabs project={project} projectId={project.id} />
+      <ProjectTabs
+        project={project}
+        projectId={project.id}
+        blockers={blockers ?? []}
+        changeRequests={changeRequests ?? []}
+      />
 
     </div>
   );

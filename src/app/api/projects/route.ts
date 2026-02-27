@@ -59,3 +59,49 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Project id is required' }, { status: 400 });
+    }
+
+    const allowedFields = [
+      'start_date',
+      'target_end_date',
+      'budget_hours',
+      'used_hours',
+      'next_milestone',
+      'next_milestone_date',
+    ];
+
+    const updates: Record<string, unknown> = {};
+    for (const field of allowedFields) {
+      if (field in body) {
+        updates[field] = body[field];
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    const { data, error } = await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ project: data });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
+}
