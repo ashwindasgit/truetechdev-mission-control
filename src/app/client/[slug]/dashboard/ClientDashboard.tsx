@@ -187,7 +187,7 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
         {/* ── Header ── */}
         <div className="flex items-start justify-between border-b border-white/10 pb-8 mb-8">
           <div>
-            <Image src="/logo.png" alt="True Tech Professionals" width={160} height={32} className="h-8 w-auto object-contain" />
+            <Image src="/logo.png" alt="True Tech Professionals" width={160} height={32} className="h-12 w-auto object-contain" />
           </div>
           <div className="text-right">
             <h1 className="text-white text-2xl font-bold">{project.name}</h1>
