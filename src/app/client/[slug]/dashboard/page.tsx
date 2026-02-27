@@ -80,5 +80,20 @@ export default async function ClientDashboardPage({ params }: Props) {
 
   const data: DashboardData = await res.json();
 
-  return <ClientDashboard slug={slug} data={data} />;
+  // Fetch AI summary
+  let summary: string | null = null;
+  try {
+    const summaryRes = await fetch(
+      `${protocol}://${host}/api/summary/${session.value}`,
+      { cache: 'no-store' }
+    );
+    if (summaryRes.ok) {
+      const summaryData = await summaryRes.json();
+      summary = summaryData.summary ?? null;
+    }
+  } catch {
+    // Summary is optional — continue without it
+  }
+
+  return <ClientDashboard slug={slug} data={data} summary={summary} />;
 }

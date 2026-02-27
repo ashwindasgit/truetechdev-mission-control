@@ -88,12 +88,12 @@ function getEventLink(metadata: EventMetadata): string | null {
   return metadata.url || metadata.issue_url || metadata.repo_url || null;
 }
 
-export default function ClientDashboard({ data }: { slug: string; data: DashboardData }) {
+export default function ClientDashboard({ data, summary }: { slug: string; data: DashboardData; summary: string | null }) {
   const { project, events, modules, metrics } = data;
 
   return (
     <div className="min-h-screen bg-[#0a0a0a]">
-      <div className="max-w-4xl mx-auto px-6 py-10">
+      <div className="max-w-[900px] mx-auto px-6 py-10">
 
         {/* Header */}
         <div className="mb-10">
@@ -115,16 +115,31 @@ export default function ClientDashboard({ data }: { slug: string; data: Dashboar
           <MetricCard
             label="Uptime"
             value={metrics.uptime_percent !== null ? `${metrics.uptime_percent}%` : 'N/A'}
+            accentColor="border-emerald-500"
           />
           <MetricCard
             label="Errors (7d)"
             value={String(metrics.error_count)}
+            accentColor="border-red-500"
           />
           <MetricCard
             label="QA Pass Rate"
             value={metrics.qa_pass_rate !== null ? `${metrics.qa_pass_rate}%` : 'N/A'}
+            accentColor="border-blue-500"
           />
         </div>
+
+        {/* AI Summary */}
+        {summary && (
+          <>
+            <div className="bg-white/[0.03] border border-white/10 rounded-xl p-5 mb-10">
+              <p className="text-white/40 text-xs font-medium mb-2">{'\u2728'} Project Summary</p>
+              <p className="text-white/80 text-sm leading-relaxed">{summary}</p>
+              <p className="text-white/20 text-[10px] mt-3">AI-generated &middot; refreshes every 30 min</p>
+            </div>
+            <hr className="border-white/10 mb-10" />
+          </>
+        )}
 
         {/* Recent Activity */}
         <section className="mb-10">
@@ -178,6 +193,8 @@ export default function ClientDashboard({ data }: { slug: string; data: Dashboar
             </div>
           )}
         </section>
+
+        <hr className="border-white/10 mb-10" />
 
         {/* Feature Progress */}
         <section className="mb-10">
@@ -242,9 +259,9 @@ export default function ClientDashboard({ data }: { slug: string; data: Dashboar
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value, accentColor }: { label: string; value: string; accentColor: string }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+    <div className={`bg-white/5 border border-white/10 border-t-2 ${accentColor} rounded-xl p-5`}>
       <p className="text-white/30 text-xs mb-2">{label}</p>
       <p className="text-white text-3xl font-bold">{value}</p>
     </div>
