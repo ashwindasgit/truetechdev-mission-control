@@ -12,7 +12,7 @@ export default async function ProjectDetailPage({ params }: Props) {
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, status, client_name, client_slug, created_at, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date')
+    .select('id, name, status, client_name, client_slug, client_password, created_at, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date')
     .eq('id', id)
     .single();
 

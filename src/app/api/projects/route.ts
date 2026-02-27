@@ -76,6 +76,7 @@ export async function PATCH(req: NextRequest) {
       'used_hours',
       'next_milestone',
       'next_milestone_date',
+      'client_password',
     ];
 
     const updates: Record<string, unknown> = {};

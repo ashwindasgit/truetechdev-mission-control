@@ -10,6 +10,7 @@ interface Project {
   status: string;
   client_name: string | null;
   client_slug: string | null;
+  client_password: string | null;
   created_at: string;
   start_date: string | null;
   target_end_date: string | null;
@@ -151,6 +152,7 @@ function SettingsTab({
   return (
     <div className="space-y-10">
       <TimelineBudgetSection project={project} />
+      <ClientPasswordSection project={project} />
       <BlockersSection projectId={project.id} initialBlockers={initialBlockers} />
       <ChangeRequestsSection projectId={project.id} initialChangeRequests={initialChangeRequests} />
     </div>
@@ -229,6 +231,62 @@ function TimelineBudgetSection({ project }: { project: Project }) {
           {saving ? 'Saving...' : 'Save'}
         </button>
         {saved && <span className="text-emerald-400 text-sm">Saved!</span>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Section: Client Password ── */
+
+function ClientPasswordSection({ project }: { project: Project }) {
+  const [password, setPassword] = useState(project.client_password ?? '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: project.id,
+          client_password: password.trim() || null,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+      <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">
+        Client Password
+      </h2>
+      <div className="flex items-end gap-3">
+        <FieldGroup label="Password for client dashboard access">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Enter client password..."
+            className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+          />
+        </FieldGroup>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Saving...' : 'Save Password'}
+        </button>
+        {saved && <span className="text-emerald-400 text-sm pb-2">Saved!</span>}
       </div>
     </div>
   );
