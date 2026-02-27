@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 interface Props {
   slug: string;
@@ -41,6 +42,7 @@ export default function ClientLoginForm({ slug, projectName }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-sm">
+      <Image src="/logo.png" alt="True Tech Professionals" width={200} height={40} className="h-10 w-auto object-contain mb-6 mx-auto" />
       <h1 className="text-2xl font-bold text-white text-center mb-2">
         {projectName}
       </h1>

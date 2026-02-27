@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 /* ──────────────────────────────────────────── Types */
 
 interface EventMetadata {
@@ -185,8 +187,7 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
         {/* ── Header ── */}
         <div className="flex items-start justify-between border-b border-white/10 pb-8 mb-8">
           <div>
-            <p className="text-white/40 text-xs uppercase tracking-widest">True Tech Dev</p>
-            <p className="text-white font-semibold text-lg">Mission Control</p>
+            <Image src="/logo.png" alt="True Tech Professionals" width={160} height={32} className="h-8 w-auto object-contain" />
           </div>
           <div className="text-right">
             <h1 className="text-white text-2xl font-bold">{project.name}</h1>
