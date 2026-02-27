@@ -44,6 +44,11 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // Skip Supabase auth checks for /client routes (they use their own cookie auth)
+  if (pathname.startsWith('/client')) {
+    return supabaseResponse;
+  }
+
   // Redirect unauthenticated users away from /admin routes to /login
   if (!user && pathname.startsWith('/admin')) {
     const url = request.nextUrl.clone();
