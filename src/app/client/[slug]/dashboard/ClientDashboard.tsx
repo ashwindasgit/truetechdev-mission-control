@@ -227,7 +227,7 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
         )}
 
         {/* ── Metric Cards ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
           <GlassCard>
             <div className="h-0.5 rounded-full mb-4 bg-gradient-to-r from-emerald-500 to-emerald-300" />
             <p className="text-2xl mb-2">{'\uD83D\uDFE2'}</p>
