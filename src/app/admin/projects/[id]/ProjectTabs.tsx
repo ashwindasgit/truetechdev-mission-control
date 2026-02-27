@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Trash2 } from 'lucide-react';
 import EventFeed from '@/components/admin/EventFeed';
 
 interface Project {
@@ -152,7 +153,7 @@ function SettingsTab({
   return (
     <div className="space-y-10">
       <TimelineBudgetSection project={project} />
-      <ClientPasswordSection project={project} />
+      <ClientAccessSection projectId={project.id} />
       <BlockersSection projectId={project.id} initialBlockers={initialBlockers} />
       <ChangeRequestsSection projectId={project.id} initialChangeRequests={initialChangeRequests} />
     </div>
@@ -236,57 +237,127 @@ function TimelineBudgetSection({ project }: { project: Project }) {
   );
 }
 
-/* ── Section: Client Password ── */
+/* ── Section: Client Access ── */
 
-function ClientPasswordSection({ project }: { project: Project }) {
-  const [password, setPassword] = useState(project.client_password ?? '');
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+interface ClientRow {
+  id: string;
+  project_id: string;
+  name: string;
+  email: string | null;
+  created_at: string;
+}
 
-  async function handleSave() {
-    setSaving(true);
+function ClientAccessSection({ projectId }: { projectId: string }) {
+  const [clients, setClients] = useState<ClientRow[]>([]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/clients?project_id=${projectId}`)
+      .then((r) => r.json())
+      .then((data) => { if (Array.isArray(data)) setClients(data); })
+      .catch(console.error);
+  }, [projectId]);
+
+  async function handleAdd() {
+    if (!name.trim() || !password.trim()) return;
+    setAdding(true);
     try {
-      const res = await fetch('/api/projects', {
-        method: 'PATCH',
+      const res = await fetch('/api/clients', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: project.id,
-          client_password: password.trim() || null,
+          project_id: projectId,
+          name: name.trim(),
+          email: email.trim() || null,
+          password: password.trim(),
         }),
       });
-      if (!res.ok) throw new Error('Failed to save');
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (!res.ok) throw new Error('Failed to add client');
+      const created: ClientRow = await res.json();
+      setClients((prev) => [created, ...prev]);
+      setName('');
+      setEmail('');
+      setPassword('');
     } catch (err) {
       console.error(err);
     } finally {
-      setSaving(false);
+      setAdding(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setClients((prev) => prev.filter((c) => c.id !== id));
+    try {
+      await fetch(`/api/clients?id=${id}`, { method: 'DELETE' });
+    } catch (err) {
+      console.error(err);
     }
   }
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6">
       <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">
-        Client Password
+        Client Access
       </h2>
-      <div className="flex items-end gap-3">
-        <FieldGroup label="Password for client dashboard access">
+
+      {clients.length === 0 && (
+        <p className="text-white/30 text-sm mb-4">No clients yet.</p>
+      )}
+
+      <div className="space-y-2 mb-4">
+        {clients.map((c) => (
+          <div
+            key={c.id}
+            className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] rounded-lg border border-white/10"
+          >
+            <span className="text-white text-sm flex-1">{c.name}</span>
+            {c.email && (
+              <span className="text-white/40 text-xs">{c.email}</span>
+            )}
+            <button
+              onClick={() => handleDelete(c.id)}
+              className="text-white/30 hover:text-red-400 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Name *"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+          />
+          <input
+            type="email"
+            placeholder="Email (optional)"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+          />
           <input
             type="password"
+            placeholder="Password *"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter client password..."
-            className="w-full px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+            className="w-40 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
           />
-        </FieldGroup>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50"
-        >
-          {saving ? 'Saving...' : 'Save Password'}
-        </button>
-        {saved && <span className="text-emerald-400 text-sm pb-2">Saved!</span>}
+          <button
+            onClick={handleAdd}
+            disabled={adding}
+            className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50"
+          >
+            {adding ? 'Adding...' : 'Add Client'}
+          </button>
+        </div>
       </div>
     </div>
   );

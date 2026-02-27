@@ -27,7 +27,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
-    if (project.client_password !== password) {
+    // Check project_clients table first
+    const { data: clientMatch } = await supabase
+      .from('project_clients')
+      .select('id')
+      .eq('project_id', project.id)
+      .eq('password', password)
+      .limit(1)
+      .maybeSingle();
+
+    // Fall back to legacy client_password if no client match
+    if (!clientMatch && project.client_password !== password) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
