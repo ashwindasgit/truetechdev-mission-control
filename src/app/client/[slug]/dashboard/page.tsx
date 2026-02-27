@@ -47,6 +47,27 @@ interface Project {
   name: string;
   client_name: string | null;
   status: string;
+  start_date: string | null;
+  target_end_date: string | null;
+  budget_hours: number | null;
+  used_hours: number | null;
+  next_milestone: string | null;
+  next_milestone_date: string | null;
+}
+
+interface Blocker {
+  id: string;
+  title: string;
+  waiting_on: string;
+  status: string;
+}
+
+interface ChangeRequest {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  hours_impact: number;
 }
 
 interface DashboardData {
@@ -54,6 +75,8 @@ interface DashboardData {
   events: Event[];
   modules: Module[];
   metrics: Metrics;
+  blockers: Blocker[];
+  changeRequests: ChangeRequest[];
 }
 
 export default async function ClientDashboardPage({ params }: Props) {

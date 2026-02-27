@@ -36,7 +36,7 @@ export async function GET(
   // Fetch project
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('name, client_name, status')
+    .select('name, client_name, status, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date')
     .eq('id', projectId)
     .eq('client_slug', slug)
     .single();
@@ -91,10 +91,27 @@ export async function GET(
       ? Math.round((fullyPassed.length / tasksWithChecks.length) * 100)
       : null;
 
+  // Fetch open blockers
+  const { data: blockers } = await supabase
+    .from('blockers')
+    .select('id, title, waiting_on, status')
+    .eq('project_id', projectId)
+    .eq('status', 'open')
+    .order('created_at', { ascending: false });
+
+  // Fetch change requests
+  const { data: changeRequests } = await supabase
+    .from('change_requests')
+    .select('id, title, description, status, hours_impact')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
+
   return NextResponse.json({
     project,
     events: allEvents,
     modules: allModules,
     metrics: { error_count, uptime_percent, qa_pass_rate },
+    blockers: blockers ?? [],
+    changeRequests: changeRequests ?? [],
   });
 }
