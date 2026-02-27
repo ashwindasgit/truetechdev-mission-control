@@ -41,6 +41,7 @@ interface Metrics {
   error_count: number;
   uptime_percent: number | null;
   qa_pass_rate: number | null;
+  deploy_count: number;
 }
 
 interface Project {

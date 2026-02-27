@@ -39,6 +39,7 @@ interface Metrics {
   error_count: number;
   uptime_percent: number | null;
   qa_pass_rate: number | null;
+  deploy_count: number;
 }
 
 interface Project {
@@ -249,6 +250,12 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
             <p className="text-white text-4xl font-bold mt-1">
               {metrics.qa_pass_rate !== null ? `${metrics.qa_pass_rate}%` : 'N/A'}
             </p>
+          </GlassCard>
+          <GlassCard>
+            <div className="h-0.5 rounded-full mb-4 bg-gradient-to-r from-violet-500 to-purple-400" />
+            <p className="text-2xl mb-2">{'\uD83D\uDE80'}</p>
+            <p className="text-white/40 text-xs uppercase tracking-wider">Deployments</p>
+            <p className="text-white text-4xl font-bold mt-1">{metrics.deploy_count}</p>
           </GlassCard>
         </div>
 

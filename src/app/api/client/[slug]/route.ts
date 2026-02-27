@@ -79,6 +79,9 @@ export async function GET(
         ) / 10
       : null;
 
+  // Deploy count
+  const deploy_count = allEvents.filter((e) => e.event_type === 'deployment').length;
+
   // QA pass rate
   const tasksWithChecks = allModules
     .flatMap((m) => m.tasks)
@@ -110,7 +113,7 @@ export async function GET(
     project,
     events: allEvents,
     modules: allModules,
-    metrics: { error_count, uptime_percent, qa_pass_rate },
+    metrics: { error_count, uptime_percent, qa_pass_rate, deploy_count },
     blockers: blockers ?? [],
     changeRequests: changeRequests ?? [],
   });
