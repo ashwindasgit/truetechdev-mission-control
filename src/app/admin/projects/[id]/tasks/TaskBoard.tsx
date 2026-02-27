@@ -89,8 +89,9 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
   const [qaModalTask, setQaModalTask] = useState<Task | null>(null);
 
   async function handleStatusChange(taskId: string, newStatus: string) {
-    setModules((prev) =>
-      prev.map((mod) => ({
+    const prev = modules;
+    setModules((m) =>
+      m.map((mod) => ({
         ...mod,
         tasks: mod.tasks.map((t) =>
           t.id === taskId ? { ...t, status: newStatus } : t
@@ -98,14 +99,27 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
       }))
     );
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) throw new Error('Failed to update status');
     } catch (err) {
       console.error(err);
+      setModules(prev);
     }
+  }
+
+  function handleQASave(taskId: string, newChecks: Record<string, boolean>) {
+    setModules((m) =>
+      m.map((mod) => ({
+        ...mod,
+        tasks: mod.tasks.map((t) =>
+          t.id === taskId ? { ...t, qa_checks: newChecks } : t
+        ),
+      }))
+    );
   }
 
   async function handleAddTask(moduleId: string) {
@@ -270,6 +284,7 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
           taskId={qaModalTask.id}
           taskTitle={qaModalTask.title}
           initialChecks={qaModalTask.qa_checks ?? {}}
+          onSave={handleQASave}
           onClose={() => setQaModalTask(null)}
         />
       )}

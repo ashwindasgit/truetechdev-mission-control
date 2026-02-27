@@ -21,10 +21,11 @@ interface QAModalProps {
   taskId: string;
   taskTitle: string;
   initialChecks: Record<string, boolean>;
+  onSave: (taskId: string, newChecks: Record<string, boolean>) => void;
   onClose: () => void;
 }
 
-export default function QAModal({ taskId, taskTitle, initialChecks, onClose }: QAModalProps) {
+export default function QAModal({ taskId, taskTitle, initialChecks, onSave, onClose }: QAModalProps) {
   const [checks, setChecks] = useState<Record<string, boolean>>(initialChecks);
   const [saving, setSaving] = useState(false);
 
@@ -35,11 +36,13 @@ export default function QAModal({ taskId, taskTitle, initialChecks, onClose }: Q
     setChecks(updated);
     setSaving(true);
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qa_checks: updated }),
       });
+      if (!res.ok) throw new Error('Failed to save QA checks');
+      onSave(taskId, updated);
     } catch (err) {
       console.error(err);
       setChecks(checks);
