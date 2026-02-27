@@ -301,7 +301,25 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
                 AI-generated
               </span>
             </div>
-            <p className="text-white/80 text-sm leading-relaxed mt-3">{summary}</p>
+            <div className="mt-3">
+              {summary
+                .split(/([\u{1F4CB}\u{1F4C5}\u{1F4B0}\u{1F528}\u{26A0}\u{FE0F}\u{1F512}])/u)
+                .reduce<string[]>((acc, chunk) => {
+                  if (/^[\u{1F4CB}\u{1F4C5}\u{1F4B0}\u{1F528}\u{26A0}\u{FE0F}\u{1F512}]$/u.test(chunk)) {
+                    acc.push(chunk);
+                  } else if (acc.length > 0) {
+                    acc[acc.length - 1] += chunk;
+                  } else if (chunk.trim()) {
+                    acc.push(chunk);
+                  }
+                  return acc;
+                }, [])
+                .map((section, i) => (
+                  <p key={i} className="text-white/80 text-sm leading-relaxed mb-2 last:mb-0">
+                    {section.trim()}
+                  </p>
+                ))}
+            </div>
             <p className="text-white/20 text-xs mt-3">Refreshes every 30 min</p>
           </div>
         )}
