@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import EventFeed from '@/components/admin/EventFeed';
 
 interface Project {
   id: string;
@@ -56,7 +57,7 @@ export default function ProjectTabs({ project, projectId }: Props) {
       </div>
 
       {activeTab === 'Overview' && <OverviewTab project={project} />}
-      {activeTab === 'Feed' && <ComingSoon label="Live Feed" />}
+      {activeTab === 'Feed' && <EventFeed projectId={project.id} />}
       {activeTab === 'Settings' && <ComingSoon label="Settings" />}
     </div>
   );
