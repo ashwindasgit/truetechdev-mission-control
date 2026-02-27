@@ -303,17 +303,8 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
             </div>
             <div className="mt-3">
               {summary
-                .split(/([\u{1F4CB}\u{1F4C5}\u{1F4B0}\u{1F528}\u{26A0}\u{FE0F}\u{1F512}])/u)
-                .reduce<string[]>((acc, chunk) => {
-                  if (/^[\u{1F4CB}\u{1F4C5}\u{1F4B0}\u{1F528}\u{26A0}\u{FE0F}\u{1F512}]$/u.test(chunk)) {
-                    acc.push(chunk);
-                  } else if (acc.length > 0) {
-                    acc[acc.length - 1] += chunk;
-                  } else if (chunk.trim()) {
-                    acc.push(chunk);
-                  }
-                  return acc;
-                }, [])
+                .split(/(?=📋|📅|💰|🔨|⚠️|🔒)/)
+                .filter((s) => s.trim().length > 0)
                 .map((section, i) => (
                   <p key={i} className="text-white/80 text-sm leading-relaxed mb-2 last:mb-0">
                     {section.trim()}
