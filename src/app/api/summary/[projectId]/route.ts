@@ -28,10 +28,10 @@ export async function GET(
 ) {
   const { projectId } = params;
 
-  // Fetch project with cache fields
+  // Fetch project with cache fields + timeline/budget
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('name, client_name, status, ai_summary, ai_summary_generated_at')
+    .select('name, client_name, status, ai_summary, ai_summary_generated_at, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date')
     .eq('id', projectId)
     .single();
 
@@ -62,8 +62,23 @@ export async function GET(
     .eq('project_id', projectId)
     .order('position', { ascending: true });
 
+  // Fetch blockers and change requests
+  const { data: openBlockers } = await supabase
+    .from('blockers')
+    .select('title')
+    .eq('project_id', projectId)
+    .eq('status', 'open');
+
+  const { data: approvedChanges } = await supabase
+    .from('change_requests')
+    .select('hours_impact')
+    .eq('project_id', projectId)
+    .eq('status', 'approved');
+
   const allEvents = (events ?? []) as EventRow[];
   const allModules = (modules ?? []) as ModuleRow[];
+  const blockerList = openBlockers ?? [];
+  const changeList = approvedChanges ?? [];
 
   // Build prompt
   const eventsText = allEvents.length > 0
@@ -82,14 +97,50 @@ export async function GET(
       }).join('\n')
     : 'No modules or tasks yet.';
 
+  // Timeline context
+  let timelineText = 'Timeline: Not set.';
+  if (project.start_date && project.target_end_date) {
+    const daysLeft = Math.max(0, Math.ceil((new Date(project.target_end_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+    timelineText = `Timeline: ${project.start_date} to ${project.target_end_date}, ${daysLeft} days remaining`;
+  }
+
+  // Budget context
+  let budgetText = 'Budget: Not set.';
+  if (project.budget_hours != null && project.used_hours != null) {
+    const pct = project.budget_hours > 0 ? Math.round((project.used_hours / project.budget_hours) * 100) : 0;
+    budgetText = `Budget: ${project.used_hours}/${project.budget_hours} hours used (${pct}%)`;
+  }
+
+  // Milestone context
+  const milestoneText = project.next_milestone
+    ? `Next milestone: ${project.next_milestone}${project.next_milestone_date ? ` due ${project.next_milestone_date}` : ''}`
+    : 'Next milestone: Not set.';
+
+  // Blockers context
+  const blockersText = blockerList.length > 0
+    ? `Open blockers: ${blockerList.length} open — ${blockerList.map((b) => b.title).join('; ')}`
+    : 'Open blockers: None.';
+
+  // Scope changes context
+  const approvedCount = changeList.length;
+  const approvedHours = changeList.reduce((sum, c) => sum + (c.hours_impact ?? 0), 0);
+  const scopeText = approvedCount > 0
+    ? `Approved scope changes: ${approvedCount} changes, +${approvedHours} hours added`
+    : 'Approved scope changes: None.';
+
   const userPrompt = `Project: ${project.name}
 Client: ${project.client_name ?? 'N/A'}
 Status: ${project.status}
+${timelineText}
+${budgetText}
+${milestoneText}
+${blockersText}
+${scopeText}
 Recent events (last 20):
 ${eventsText}
 Modules and tasks:
 ${modulesText}
-Write a 2-3 sentence summary of project health.`;
+Write a 3-paragraph summary of project health.`;
 
   // Call Claude API
   try {
@@ -102,8 +153,8 @@ Write a 2-3 sentence summary of project health.`;
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        system: 'You are a project health assistant for a software development agency. Write a 2-3 sentence plain English summary of a client project\'s current health. Be specific, use the actual data. Sound professional but human. No bullet points.',
+        max_tokens: 400,
+        system: 'You are a project health assistant for a software development agency. Write a 3-paragraph plain English summary of a client project\'s current health. Naturally weave in timeline progress, budget usage, upcoming milestones, any open blockers, and scope changes when the data is available. Be specific, use the actual numbers and dates. Sound professional but human. No bullet points, no jargon, no internal tool names.',
         messages: [{ role: 'user', content: userPrompt }],
       }),
     });
