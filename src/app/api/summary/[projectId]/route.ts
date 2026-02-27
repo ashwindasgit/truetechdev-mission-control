@@ -140,7 +140,15 @@ Recent events (last 20):
 ${eventsText}
 Modules and tasks:
 ${modulesText}
-Write a 3-paragraph summary of project health.`;
+
+Write the summary using exactly these 6 labeled sections. Keep each section to 1-2 sentences. No intro, no conclusion, just the 6 sections.
+
+📋 Summary: One sentence on overall project health and whether it's on track.
+📅 Timeline: Mention the deadline and days remaining.
+💰 Budget: State hours used, total hours, and percentage.
+🔨 In Progress: What the team is actively working on right now.
+⚠️ Issues: Any errors or technical problems (or "No critical issues." if none).
+🔒 Waiting On You: Any open blockers waiting on the client (or "Nothing required from you right now." if none).`;
 
   // Call Claude API
   try {
@@ -154,7 +162,7 @@ Write a 3-paragraph summary of project health.`;
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
-        system: 'You are a project health assistant for a software development agency. Write a 3-paragraph plain English summary of a client project\'s current health. Naturally weave in timeline progress, budget usage, upcoming milestones, any open blockers, and scope changes when the data is available. Be specific, use the actual numbers and dates. Sound professional but human. No bullet points, no jargon, no internal tool names.',
+        system: 'You are a project health assistant for a software development agency. Write a structured project summary using exactly these labeled sections. Each section is 1-2 sentences maximum. No markdown headers, no bullet points, no walls of text. Use plain text only. Sound professional but human.',
         messages: [{ role: 'user', content: userPrompt }],
       }),
     });
