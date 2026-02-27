@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import QAModal from '@/components/admin/QAModal';
 
 interface Task {
   id: string;
@@ -8,6 +9,7 @@ interface Task {
   status: string;
   pr_url: string | null;
   position: number;
+  qa_checks: Record<string, boolean>;
 }
 
 interface Module {
@@ -31,14 +33,30 @@ const STATUS_CONFIG: Record<string, { label: string; classes: string }> = {
   failed:   { label: 'Failed',   classes: 'bg-red-500/20 text-red-300' },
 };
 
-function TaskRow({ task }: { task: Task }) {
+function TaskRow({
+  task,
+  onStatusChange,
+  onQAClick,
+}: {
+  task: Task;
+  onStatusChange: (taskId: string, newStatus: string) => void;
+  onQAClick: (task: Task) => void;
+}) {
   const status = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.backlog;
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-lg border border-white/10">
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${status.classes}`}>
-        {status.label}
-      </span>
+      <select
+        value={task.status}
+        onChange={(e) => onStatusChange(task.id, e.target.value)}
+        className={`px-2.5 py-0.5 rounded-full text-xs font-medium appearance-none cursor-pointer border-0 outline-none ${status.classes}`}
+      >
+        {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+          <option key={key} value={key} className="bg-[#111] text-white">
+            {cfg.label}
+          </option>
+        ))}
+      </select>
       <span className="text-white text-sm flex-1">{task.title}</span>
       {task.pr_url && (
         <a
@@ -50,7 +68,10 @@ function TaskRow({ task }: { task: Task }) {
           PR &rarr;
         </a>
       )}
-      <button className="text-xs px-2.5 py-1 rounded-md border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-colors">
+      <button
+        onClick={() => onQAClick(task)}
+        className="text-xs px-2.5 py-1 rounded-md border border-white/10 text-white/40 hover:text-white/60 hover:border-white/20 transition-colors"
+      >
         QA
       </button>
     </div>
@@ -65,6 +86,27 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
   const [addingTaskForModule, setAddingTaskForModule] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [savingTask, setSavingTask] = useState(false);
+  const [qaModalTask, setQaModalTask] = useState<Task | null>(null);
+
+  async function handleStatusChange(taskId: string, newStatus: string) {
+    setModules((prev) =>
+      prev.map((mod) => ({
+        ...mod,
+        tasks: mod.tasks.map((t) =>
+          t.id === taskId ? { ...t, status: newStatus } : t
+        ),
+      }))
+    );
+    try {
+      await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function handleAddTask(moduleId: string) {
     if (!newTaskTitle.trim()) return;
@@ -176,7 +218,12 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
             {/* Task List */}
             <div className="space-y-2">
               {mod.tasks?.map((task) => (
-                <TaskRow key={task.id} task={task} />
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onStatusChange={handleStatusChange}
+                  onQAClick={setQaModalTask}
+                />
               ))}
             </div>
 
@@ -217,6 +264,15 @@ export default function TaskBoard({ projectId, initialModules }: TaskBoardProps)
           </div>
         ))}
       </div>
+
+      {qaModalTask && (
+        <QAModal
+          taskId={qaModalTask.id}
+          taskTitle={qaModalTask.title}
+          initialChecks={qaModalTask.qa_checks ?? {}}
+          onClose={() => setQaModalTask(null)}
+        />
+      )}
     </div>
   );
 }
