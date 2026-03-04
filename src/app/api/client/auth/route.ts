@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,17 +28,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
-    // Check project_clients table first
-    const { data: clientMatch } = await supabase
-      .from('project_clients')
-      .select('id')
-      .eq('project_id', project.id)
-      .eq('password', password)
-      .limit(1)
-      .maybeSingle();
+    // Compare against bcrypt-hashed client_password
+    if (!project.client_password) {
+      return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+    }
 
-    // Fall back to legacy client_password if no client match
-    if (!clientMatch && project.client_password !== password) {
+    const passwordMatch = await bcrypt.compare(password, project.client_password);
+    if (!passwordMatch) {
       return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
     }
 
