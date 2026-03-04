@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
         project_id,
         name: name.trim(),
         email: email?.trim() || null,
-        password: password.trim(),
+        password: await bcrypt.hash(password.trim(), 10),
       })
       .select('id, project_id, name, email, created_at')
       .single();
@@ -75,4 +76,32 @@ export async function DELETE(req: NextRequest) {
   }
 
   return NextResponse.json({ success: true });
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const { id, password } = await req.json();
+
+    if (!id || !password?.trim()) {
+      return NextResponse.json(
+        { error: 'id and password are required' },
+        { status: 400 }
+      );
+    }
+
+    const hashed = await bcrypt.hash(password.trim(), 10);
+
+    const { error } = await supabase
+      .from('project_clients')
+      .update({ password: hashed })
+      .eq('id', id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  }
 }

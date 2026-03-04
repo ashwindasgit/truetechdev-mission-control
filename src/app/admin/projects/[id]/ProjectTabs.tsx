@@ -253,6 +253,8 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [adding, setAdding] = useState(false);
+  const [resettingId, setResettingId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
 
   useEffect(() => {
     fetch(`/api/clients?project_id=${projectId}`)
@@ -288,6 +290,21 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
     }
   }
 
+  async function handleReset(id: string) {
+    if (!resetPassword.trim()) return;
+    setResettingId(null);
+    try {
+      await fetch('/api/clients', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, password: resetPassword.trim() }),
+      });
+      setResetPassword('');
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   async function handleDelete(id: string) {
     setClients((prev) => prev.filter((c) => c.id !== id));
     try {
@@ -309,20 +326,48 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
 
       <div className="space-y-2 mb-4">
         {clients.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] rounded-lg border border-white/10"
-          >
-            <span className="text-white text-sm flex-1">{c.name}</span>
-            {c.email && (
-              <span className="text-white/40 text-xs">{c.email}</span>
+          <div key={c.id} className="space-y-2">
+            <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] rounded-lg border border-white/10">
+              <span className="text-white text-sm flex-1">{c.name}</span>
+              {c.email && (
+                <span className="text-white/40 text-xs">{c.email}</span>
+              )}
+              <button
+                onClick={() => setResettingId(resettingId === c.id ? null : c.id)}
+                className="text-xs px-2.5 py-1 rounded-md border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-colors"
+              >
+                Reset Password
+              </button>
+              <button
+                onClick={() => handleDelete(c.id)}
+                className="text-white/30 hover:text-red-400 transition-colors"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+            {resettingId === c.id && (
+              <div className="flex items-center gap-2 px-4">
+                <input
+                  type="password"
+                  placeholder="New password..."
+                  value={resetPassword}
+                  onChange={(e) => setResetPassword(e.target.value)}
+                  className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+                />
+                <button
+                  onClick={() => handleReset(c.id)}
+                  className="px-3 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => { setResettingId(null); setResetPassword(''); }}
+                  className="px-3 py-2 text-white/40 text-sm hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             )}
-            <button
-              onClick={() => handleDelete(c.id)}
-              className="text-white/30 hover:text-red-400 transition-colors"
-            >
-              <Trash2 size={14} />
-            </button>
           </div>
         ))}
       </div>

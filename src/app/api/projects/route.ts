@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 
 // Use service role here — this is a server-only API route
 const supabase = createClient(
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         client_name: client_name?.trim() || null,
         client_slug: client_slug.trim().toLowerCase(),
-        client_password: client_password?.trim() || null,
+        client_password: client_password?.trim()
+          ? await bcrypt.hash(client_password.trim(), 10)
+          : null,
         status: 'active',
       })
       .select('id')
@@ -82,7 +85,11 @@ export async function PATCH(req: NextRequest) {
     const updates: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (field in body) {
-        updates[field] = body[field];
+        if (field === 'client_password' && body[field]) {
+          updates[field] = await bcrypt.hash(body[field], 10);
+        } else {
+          updates[field] = body[field];
+        }
       }
     }
 
