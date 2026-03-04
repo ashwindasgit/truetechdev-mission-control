@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, LogOut } from 'lucide-react';
+import { LayoutDashboard, LogOut, Users } from 'lucide-react';
 import { createBrowserClient } from '@supabase/ssr';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,11 @@ const navItems = [
     label: 'Projects',
     href: '/admin',
     icon: LayoutDashboard,
+  },
+  {
+    label: 'Developers',
+    href: '/admin/developers',
+    icon: Users,
   },
 ];
 
