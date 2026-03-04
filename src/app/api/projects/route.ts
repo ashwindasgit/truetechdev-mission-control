@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
       .from('projects')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select('id, name, status, client_name, client_slug, created_at, start_date, target_end_date, budget_hours, used_hours, next_milestone, next_milestone_date, branch_protection')
       .single();
 
     if (error) {

@@ -18,6 +18,11 @@ interface Project {
   used_hours: number | null;
   next_milestone: string | null;
   next_milestone_date: string | null;
+  branch_protection?: {
+    require_audit: boolean;
+    auto_audit_on_pr: boolean;
+    min_confidence_to_pass: number;
+  };
 }
 
 interface Blocker {
