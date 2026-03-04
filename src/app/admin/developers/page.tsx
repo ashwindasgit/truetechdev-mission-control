@@ -1,20 +1,21 @@
+import { createClient } from '@/lib/supabase/server';
 import DeveloperList from './DeveloperList';
 
 export default async function DevelopersPage() {
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/api/developers`,
-    { cache: 'no-store' }
-  );
+  const supabase = await createClient();
 
-  if (!res.ok) {
+  const { data: developers, error } = await supabase
+    .from('developers')
+    .select('id, name, email, github_username, slug, stacks, status, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
     return (
       <div className="p-8">
-        <p className="text-red-400 text-sm">Failed to load developers.</p>
+        <p className="text-red-400 text-sm">Failed to load developers: {error.message}</p>
       </div>
     );
   }
-
-  const developers = await res.json();
 
   return <DeveloperList developers={developers ?? []} />;
 }

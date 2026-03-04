@@ -230,7 +230,7 @@ export default function DeveloperList({ developers: initial }: { developers: Dev
                   <td className="px-6 py-4 text-white/60 hidden md:table-cell">{dev.github_username}</td>
                   <td className="px-6 py-4 text-white/40 hidden lg:table-cell">{dev.slug}</td>
                   <td className="px-6 py-4 text-white/40 hidden lg:table-cell">
-                    {dev.stacks.length > 0 ? dev.stacks.join(', ') : '—'}
+                    {dev.stacks?.length > 0 ? dev.stacks.join(', ') : '—'}
                   </td>
                   <td className="px-6 py-4">
                     <span
