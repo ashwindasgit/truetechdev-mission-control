@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react';
 import EventFeed from '@/components/admin/EventFeed';
 
 interface Project {
@@ -239,170 +238,63 @@ function TimelineBudgetSection({ project }: { project: Project }) {
 
 /* ── Section: Client Access ── */
 
-interface ClientRow {
-  id: string;
-  project_id: string;
-  name: string;
-  email: string | null;
-  created_at: string;
-}
-
 function ClientAccessSection({ projectId }: { projectId: string }) {
-  const [clients, setClients] = useState<ClientRow[]>([]);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [adding, setAdding] = useState(false);
-  const [resettingId, setResettingId] = useState<string | null>(null);
-  const [resetPassword, setResetPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch(`/api/clients?project_id=${projectId}`)
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setClients(data); })
-      .catch(console.error);
-  }, [projectId]);
-
-  async function handleAdd() {
-    if (!name.trim() || !password.trim()) return;
-    setAdding(true);
+  async function handleReset() {
+    if (!newPassword.trim()) return;
+    setSaving(true);
+    setError(null);
     try {
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          project_id: projectId,
-          name: name.trim(),
-          email: email.trim() || null,
-          password: password.trim(),
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to add client');
-      const created: ClientRow = await res.json();
-      setClients((prev) => [created, ...prev]);
-      setName('');
-      setEmail('');
-      setPassword('');
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAdding(false);
-    }
-  }
-
-  async function handleReset(id: string) {
-    if (!resetPassword.trim()) return;
-    setResettingId(null);
-    try {
-      await fetch('/api/clients', {
+      const res = await fetch('/api/projects', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, password: resetPassword.trim() }),
+        body: JSON.stringify({
+          id: projectId,
+          client_password: newPassword.trim(),
+        }),
       });
-      setResetPassword('');
+      if (!res.ok) throw new Error('Failed to reset password');
+      setNewPassword('');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
     } catch (err) {
+      setError('Failed to reset password. Please try again.');
       console.error(err);
-    }
-  }
-
-  async function handleDelete(id: string) {
-    setClients((prev) => prev.filter((c) => c.id !== id));
-    try {
-      await fetch(`/api/clients?id=${id}`, { method: 'DELETE' });
-    } catch (err) {
-      console.error(err);
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-      <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-4">
-        Client Access
+      <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-1">
+        Client Dashboard Password
       </h2>
-
-      {clients.length === 0 && (
-        <p className="text-white/30 text-sm mb-4">No clients yet.</p>
-      )}
-
-      <div className="space-y-2 mb-4">
-        {clients.map((c) => (
-          <div key={c.id} className="space-y-2">
-            <div className="flex items-center gap-3 px-4 py-3 bg-white/[0.03] rounded-lg border border-white/10">
-              <span className="text-white text-sm flex-1">{c.name}</span>
-              {c.email && (
-                <span className="text-white/40 text-xs">{c.email}</span>
-              )}
-              <button
-                onClick={() => setResettingId(resettingId === c.id ? null : c.id)}
-                className="text-xs px-2.5 py-1 rounded-md border border-white/10 text-white/40 hover:text-white hover:border-white/30 transition-colors"
-              >
-                Reset Password
-              </button>
-              <button
-                onClick={() => handleDelete(c.id)}
-                className="text-white/30 hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-            {resettingId === c.id && (
-              <div className="flex items-center gap-2 px-4">
-                <input
-                  type="password"
-                  placeholder="New password..."
-                  value={resetPassword}
-                  onChange={(e) => setResetPassword(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
-                />
-                <button
-                  onClick={() => handleReset(c.id)}
-                  className="px-3 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => { setResettingId(null); setResetPassword(''); }}
-                  className="px-3 py-2 text-white/40 text-sm hover:text-white transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Name *"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
-          />
-          <input
-            type="email"
-            placeholder="Email (optional)"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="flex-1 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
-          />
-          <input
-            type="password"
-            placeholder="Password *"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-40 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={adding}
-            className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50"
-          >
-            {adding ? 'Adding...' : 'Add Client'}
-          </button>
-        </div>
+      <p className="text-white/30 text-xs mb-4">
+        All client stakeholders use this password to access the dashboard.
+      </p>
+      <div className="flex items-center gap-2">
+        <input
+          type="password"
+          placeholder="New password..."
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleReset()}
+          className="w-64 px-3 py-2 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-white/30"
+        />
+        <button
+          onClick={handleReset}
+          disabled={saving || !newPassword.trim()}
+          className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Reset Password'}
+        </button>
+        {saved && <span className="text-emerald-400 text-sm">Password updated!</span>}
+        {error && <span className="text-red-400 text-sm">{error}</span>}
       </div>
     </div>
   );
