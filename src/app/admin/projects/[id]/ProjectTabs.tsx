@@ -152,7 +152,11 @@ function SettingsTab({
   return (
     <div className="space-y-10">
       <TimelineBudgetSection project={project} />
-      <ClientAccessSection projectId={project.id} />
+      <ClientAccessSection
+        projectId={project.id}
+        clientSlug={project.client_slug}
+        clientName={project.client_name}
+      />
       <BlockersSection projectId={project.id} initialBlockers={initialBlockers} />
       <ChangeRequestsSection projectId={project.id} initialChangeRequests={initialChangeRequests} />
     </div>
@@ -238,11 +242,25 @@ function TimelineBudgetSection({ project }: { project: Project }) {
 
 /* ── Section: Client Access ── */
 
-function ClientAccessSection({ projectId }: { projectId: string }) {
+function ClientAccessSection({
+  projectId,
+  clientSlug,
+  clientName,
+}: {
+  projectId: string;
+  clientSlug: string | null;
+  clientName: string | null;
+}) {
   const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastSetPassword, setLastSetPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const dashboardUrl = clientSlug
+    ? `https://mission-control.truetechpro.io/client/${clientSlug}`
+    : null;
 
   async function handleReset() {
     if (!newPassword.trim()) return;
@@ -258,6 +276,7 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
         }),
       });
       if (!res.ok) throw new Error('Failed to reset password');
+      setLastSetPassword(newPassword.trim());
       setNewPassword('');
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -269,18 +288,39 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
     }
   }
 
+  function handleCopy() {
+    if (!dashboardUrl || !lastSetPassword) return;
+    const name = clientName ?? 'there';
+    const message = `Hi ${name} 👋\n\nYour Mission Control dashboard is ready!\n\n🔗 Dashboard: ${dashboardUrl}\n🔑 Password: ${lastSetPassword}\n\nLet me know if you have any questions.\n\n— True Tech Professionals`;
+    navigator.clipboard.writeText(message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-      <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-1">
-        Client Dashboard Password
-      </h2>
-      <p className="text-white/30 text-xs mb-4">
-        All client stakeholders use this password to access the dashboard.
-      </p>
+    <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-5">
+      <div>
+        <h2 className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-1">
+          Client Dashboard Access
+        </h2>
+        <p className="text-white/30 text-xs">
+          All client stakeholders use a single shared password to access the dashboard.
+        </p>
+      </div>
+
+      {/* Dashboard URL display */}
+      {dashboardUrl && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] border border-white/10 rounded-lg">
+          <span className="text-white/30 text-xs">🔗</span>
+          <span className="text-white/60 text-sm font-mono">{dashboardUrl}</span>
+        </div>
+      )}
+
+      {/* Reset password row */}
       <div className="flex items-center gap-2">
         <input
           type="password"
-          placeholder="New password..."
+          placeholder="Set new password..."
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleReset()}
@@ -291,11 +331,29 @@ function ClientAccessSection({ projectId }: { projectId: string }) {
           disabled={saving || !newPassword.trim()}
           className="px-4 py-2 bg-white text-black text-sm font-medium rounded-lg hover:bg-white/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving...' : 'Reset Password'}
+          {saving ? 'Saving...' : 'Set Password'}
         </button>
-        {saved && <span className="text-emerald-400 text-sm">Password updated!</span>}
+        {saved && <span className="text-emerald-400 text-sm">Saved!</span>}
         {error && <span className="text-red-400 text-sm">{error}</span>}
       </div>
+
+      {/* Copy to clipboard — only visible after password is set this session */}
+      {lastSetPassword && dashboardUrl && (
+        <div className="border border-white/10 rounded-lg p-4 space-y-3 bg-white/[0.02]">
+          <p className="text-white/40 text-xs">
+            Password set. Copy the access details to send to your client — this will not be shown again after you leave this page.
+          </p>
+          <div className="font-mono text-xs text-white/50 whitespace-pre-wrap leading-relaxed">
+            {`Hi ${clientName ?? 'there'} 👋\n\nYour Mission Control dashboard is ready!\n\n🔗 Dashboard: ${dashboardUrl}\n🔑 Password: ${lastSetPassword}\n\nLet me know if you have any questions.\n\n— True Tech Professionals`}
+          </div>
+          <button
+            onClick={handleCopy}
+            className="px-4 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-sm font-medium rounded-lg hover:bg-emerald-500/30 transition-colors"
+          >
+            {copied ? '✓ Copied!' : '📋 Copy Access Details'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
