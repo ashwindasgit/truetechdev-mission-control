@@ -119,5 +119,5 @@ export default async function ClientDashboardPage({ params }: Props) {
     // Summary is optional — continue without it
   }
 
-  return <ClientDashboard slug={slug} data={data} summary={summary} />;
+  return <ClientDashboard slug={slug} data={data} summary={summary} projectId={session.value} />;
 }

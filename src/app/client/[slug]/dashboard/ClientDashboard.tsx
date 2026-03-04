@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 /* ──────────────────────────────────────────── Types */
 
@@ -82,6 +83,7 @@ interface DashboardProps {
   slug: string;
   data: DashboardData;
   summary: string | null;
+  projectId: string;
 }
 
 /* ──────────────────────────────────────────── Constants */
@@ -151,7 +153,7 @@ function formatDate(dateStr: string): string {
 
 /* ──────────────────────────────────────────── Main Component */
 
-export default function ClientDashboard({ data, summary }: DashboardProps) {
+export default function ClientDashboard({ data, summary, projectId }: DashboardProps) {
   const { project, events, modules, metrics, blockers, changeRequests } = data;
 
   const budgetPercent =
@@ -297,30 +299,7 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
         )}
 
         {/* ── AI Summary ── */}
-        {summary && (
-          <div
-            className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-2xl p-6 mb-6"
-            style={{ boxShadow: '0 0 40px rgba(168, 85, 247, 0.08)' }}
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-purple-300 text-sm font-medium">{'\u2728'} Project Summary</p>
-              <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs px-2 py-0.5 rounded-full">
-                AI-generated
-              </span>
-            </div>
-            <div className="mt-3">
-              {summary
-                .split(/(?=📋|📅|💰|🔨|⚠️|🔒)/)
-                .filter((s) => s.trim().length > 0)
-                .map((section, i) => (
-                  <p key={i} className="text-white/80 text-sm leading-relaxed mb-2 last:mb-0">
-                    {section.trim()}
-                  </p>
-                ))}
-            </div>
-            <p className="text-white/20 text-xs mt-3">Refreshes every 30 min</p>
-          </div>
-        )}
+        <AISummaryCard initialSummary={summary} projectId={projectId} />
 
         {/* ── Blockers ── */}
         {blockers.length > 0 && (
@@ -485,6 +464,118 @@ export default function ClientDashboard({ data, summary }: DashboardProps) {
           </p>
         </footer>
       </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────── AI Summary Card */
+
+const COOLDOWN_SECONDS = 5 * 60; // 5 minutes
+
+function AISummaryCard({ initialSummary, projectId }: { initialSummary: string | null; projectId: string }) {
+  const [summary, setSummary] = useState(initialSummary);
+  const [loading, setLoading] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const [justRefreshed, setJustRefreshed] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startCooldown = useCallback(() => {
+    setCooldownSeconds(COOLDOWN_SECONDS);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          timerRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/summary/${projectId}`, { method: 'PATCH' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.summary) {
+          setSummary(data.summary);
+          setJustRefreshed(true);
+        }
+      }
+    } finally {
+      setLoading(false);
+      startCooldown();
+    }
+  };
+
+  const formatCooldown = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const isDisabled = loading || cooldownSeconds > 0;
+
+  if (!summary && !loading) return null;
+
+  return (
+    <div
+      className="bg-white/5 backdrop-blur-md border border-purple-500/20 rounded-2xl p-6 mb-6"
+      style={{ boxShadow: '0 0 40px rgba(168, 85, 247, 0.08)' }}
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-purple-300 text-sm font-medium">{'\u2728'} Project Summary</p>
+        <div className="flex items-center gap-2">
+          <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs px-2 py-0.5 rounded-full">
+            AI-generated
+          </span>
+          <button
+            onClick={handleRefresh}
+            disabled={isDisabled}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              isDisabled
+                ? 'border-white/10 text-white/20 cursor-not-allowed'
+                : 'border-purple-500/30 text-purple-300 hover:bg-purple-500/10 cursor-pointer'
+            }`}
+          >
+            {loading ? (
+              <span className="flex items-center gap-1">
+                <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Refreshing
+              </span>
+            ) : cooldownSeconds > 0 ? (
+              `↻ Refresh in ${formatCooldown(cooldownSeconds)}`
+            ) : (
+              '↻ Refresh'
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="mt-3">
+        {(summary ?? '')
+          .split(/(?=📋|📅|💰|🔨|⚠️|🔒)/)
+          .filter((s) => s.trim().length > 0)
+          .map((section, i) => (
+            <p key={i} className="text-white/80 text-sm leading-relaxed mb-2 last:mb-0">
+              {section.trim()}
+            </p>
+          ))}
+      </div>
+      <p className="text-white/20 text-xs mt-3">
+        {justRefreshed ? 'Last refreshed just now' : 'Refreshes every 30 min'}
+      </p>
     </div>
   );
 }
