@@ -413,7 +413,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
     .join(',');
 
   useEffect(() => {
-    fetch(`/api/pr-audits/${projectId}`)
+    fetch(`/api/pr-audits/${projectId}`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch audits');
         return res.json();

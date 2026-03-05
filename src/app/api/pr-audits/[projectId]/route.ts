@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const PR_AUDIT_FIELDS =
   'id, project_id, pr_number, repo_url, audit_summary, confidence_score, passed, issues, raw_pr_title, raw_pr_author, created_at';
 
