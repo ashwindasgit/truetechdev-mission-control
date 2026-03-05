@@ -19,6 +19,7 @@ export async function GET(
     .select('id, project_id, pr_number, repo_url, audit_summary, confidence_score, passed, issues, raw_pr_title, raw_pr_author, created_at')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
+    .limit(100)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
