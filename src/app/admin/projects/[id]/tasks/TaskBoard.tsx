@@ -1,10 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Trash2, List } from 'lucide-react';
 import QAModal from '@/components/admin/QAModal';
 
 /* ────────────────────────────────── Types */
+
+interface PrAudit {
+  id: string;
+  project_id: string;
+  pr_number: number;
+  repo_url: string;
+  audit_summary: string;
+  confidence_score: number;
+  passed: boolean;
+  issues: string[];
+  raw_pr_title: string | null;
+  raw_pr_author: string | null;
+  created_at: string;
+}
 
 interface Developer {
   id: string;
@@ -180,17 +194,20 @@ function TaskRow({
 function TaskExpandedPanel({
   task,
   repoUrl,
+  auditMap,
   onUpdateCriteria,
   onUpdatePRs,
 }: {
   task: Task;
   repoUrl: string | null;
+  auditMap: Record<number, PrAudit>;
   onUpdateCriteria: (taskId: string, criteria: string[]) => void;
   onUpdatePRs: (taskId: string, prs: number[]) => void;
 }) {
   const [newCriterion, setNewCriterion] = useState('');
   const [newPR, setNewPR] = useState('');
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
+  const [expandedAudit, setExpandedAudit] = useState<number | null>(null);
 
   function toggleCheck(idx: number) {
     setCheckedItems((prev) => {
@@ -276,25 +293,71 @@ function TaskExpandedPanel({
         {(task.linked_pr_numbers?.length ?? 0) === 0 && (
           <p className="text-white/20 text-xs mb-2">No linked PRs.</p>
         )}
-        <div className="flex flex-wrap gap-2 mb-2">
-          {task.linked_pr_numbers?.map((pr) => (
-            <span key={pr} className="inline-flex items-center gap-1">
-              {baseRepo ? (
-                <a
-                  href={`${baseRepo}/pull/${pr}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2 py-0.5 bg-blue-500/15 text-blue-400 text-xs rounded-full hover:bg-blue-500/25 transition-colors"
-                >
-                  #{pr}
-                </a>
-              ) : (
-                <span className="px-2 py-0.5 bg-white/10 text-white/50 text-xs rounded-full">
-                  #{pr}
-                </span>
-              )}
-            </span>
-          ))}
+        <div className="space-y-2 mb-2">
+          {task.linked_pr_numbers?.map((pr) => {
+            const audit = auditMap[pr];
+            const isAuditExpanded = expandedAudit === pr;
+            return (
+              <div key={pr}>
+                <div className="flex items-center gap-2">
+                  {baseRepo ? (
+                    <a
+                      href={`${baseRepo}/pull/${pr}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2 py-0.5 bg-blue-500/15 text-blue-400 text-xs rounded-full hover:bg-blue-500/25 transition-colors"
+                    >
+                      #{pr}
+                    </a>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-white/10 text-white/50 text-xs rounded-full">
+                      #{pr}
+                    </span>
+                  )}
+                  {/* Audit badge */}
+                  {audit ? (
+                    <button
+                      onClick={() => setExpandedAudit(isAuditExpanded ? null : pr)}
+                      className={`px-2 py-0.5 text-xs rounded-full font-medium cursor-pointer transition-colors ${
+                        audit.passed
+                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25'
+                          : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
+                      }`}
+                    >
+                      {audit.passed ? '✅ PASSED' : '⚠️ NEEDS REVIEW'} {audit.confidence_score.toFixed(2)}
+                    </button>
+                  ) : (
+                    <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-white/5 text-white/30 border border-white/10">
+                      ⏳ Pending
+                    </span>
+                  )}
+                </div>
+                {/* Expanded audit detail */}
+                {audit && isAuditExpanded && (
+                  <div className="mt-1.5 ml-4 p-3 bg-white/5 border border-white/10 rounded-lg space-y-2">
+                    <p className="text-white/70 text-sm">{audit.audit_summary}</p>
+                    {audit.issues.length > 0 && (
+                      <div>
+                        <p className="text-white/40 text-xs font-semibold uppercase tracking-wider mb-1">Issues</p>
+                        <ul className="space-y-0.5">
+                          {audit.issues.map((issue, idx) => (
+                            <li key={idx} className="text-white/50 text-xs flex items-start gap-1.5">
+                              <span className="text-white/20 mt-0.5">•</span>
+                              {issue}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    <p className="text-white/20 text-[10px]">
+                      Audited {new Date(audit.created_at).toLocaleString()}
+                      {audit.raw_pr_author && ` · by @${audit.raw_pr_author}`}
+                    </p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -331,8 +394,28 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
   const [qaModalTask, setQaModalTask] = useState<Task | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [devFilter, setDevFilter] = useState<string>('all');
+  const [auditMap, setAuditMap] = useState<Record<number, PrAudit>>({});
 
   const activeDevelopers = developers.filter((d) => d.status === 'active');
+
+  useEffect(() => {
+    fetch(`/api/pr-audits/${projectId}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch audits');
+        return res.json();
+      })
+      .then((audits: PrAudit[]) => {
+        const map: Record<number, PrAudit> = {};
+        for (const audit of audits) {
+          // Keep the most recent audit per PR number
+          if (!map[audit.pr_number]) {
+            map[audit.pr_number] = audit;
+          }
+        }
+        setAuditMap(map);
+      })
+      .catch((err) => console.error('PR audits fetch error:', err));
+  }, [projectId]);
 
   function toggleExpand(taskId: string) {
     setExpandedTasks((prev) => {
@@ -687,6 +770,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
                       <TaskExpandedPanel
                         task={task}
                         repoUrl={repoUrl}
+                        auditMap={auditMap}
                         onUpdateCriteria={handleUpdateCriteria}
                         onUpdatePRs={handleUpdatePRs}
                       />

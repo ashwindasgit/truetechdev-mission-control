@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Developer {
   id: string;
@@ -17,7 +17,16 @@ interface Task {
   id: string;
   title: string;
   status: string;
+  project_id: string;
+  linked_pr_numbers: number[];
   module_name: string;
+}
+
+interface PrAudit {
+  pr_number: number;
+  audit_summary: string;
+  confidence_score: number;
+  passed: boolean;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -42,6 +51,32 @@ export default function DevDashboard({
 }) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [auditMap, setAuditMap] = useState<Record<number, PrAudit>>({});
+  const [expandedAudit, setExpandedAudit] = useState<string | null>(null);
+
+  // Fetch audits for all projects the developer has tasks in
+  useEffect(() => {
+    const projectIds = Array.from(new Set(tasks.map((t) => t.project_id).filter(Boolean)));
+    if (projectIds.length === 0) return;
+
+    Promise.all(
+      projectIds.map((pid) =>
+        fetch(`/api/pr-audits/${pid}`)
+          .then((res) => (res.ok ? res.json() : []))
+          .catch(() => [])
+      )
+    ).then((results) => {
+      const map: Record<number, PrAudit> = {};
+      for (const audits of results) {
+        for (const audit of audits as PrAudit[]) {
+          if (!map[audit.pr_number]) {
+            map[audit.pr_number] = audit;
+          }
+        }
+      }
+      setAuditMap(map);
+    });
+  }, [tasks]);
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -125,29 +160,70 @@ export default function DevDashboard({
             </p>
           ) : (
             <div className="space-y-3">
-              {tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="flex items-center justify-between py-2.5 px-3 bg-white/[0.03] rounded-lg"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-medium truncate">
-                      {task.title}
-                    </p>
-                    <p className="text-white/30 text-xs mt-0.5">
-                      {task.module_name}
-                    </p>
+              {tasks.map((task) => {
+                const prs = task.linked_pr_numbers ?? [];
+                return (
+                  <div key={task.id} className="py-2.5 px-3 bg-white/[0.03] rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-white text-sm font-medium truncate">
+                          {task.title}
+                        </p>
+                        <p className="text-white/30 text-xs mt-0.5">
+                          {task.module_name}
+                        </p>
+                      </div>
+                      <span
+                        className={`ml-3 flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${
+                          TASK_STATUS_BADGE[task.status] ??
+                          'bg-white/10 text-white/40 border-white/10'
+                        }`}
+                      >
+                        {task.status}
+                      </span>
+                    </div>
+
+                    {/* PR audit badges */}
+                    {prs.length > 0 && (
+                      <div className="mt-2 space-y-1.5">
+                        {prs.map((pr) => {
+                          const audit = auditMap[pr];
+                          const auditKey = `${task.id}-${pr}`;
+                          const isExpanded = expandedAudit === auditKey;
+                          return (
+                            <div key={pr}>
+                              <div className="flex items-center gap-2">
+                                <span className="text-white/30 text-xs">#{pr}</span>
+                                {audit ? (
+                                  <button
+                                    onClick={() => setExpandedAudit(isExpanded ? null : auditKey)}
+                                    className={`px-2 py-0.5 text-xs rounded-full font-medium transition-colors ${
+                                      audit.passed
+                                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25'
+                                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25'
+                                    }`}
+                                  >
+                                    {audit.passed ? '✅ PASSED' : '⚠️ NEEDS REVIEW'} {audit.confidence_score.toFixed(2)}
+                                  </button>
+                                ) : (
+                                  <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-white/5 text-white/30 border border-white/10">
+                                    ⏳ Pending
+                                  </span>
+                                )}
+                              </div>
+                              {audit && isExpanded && (
+                                <p className="mt-1 ml-4 text-white/50 text-xs leading-relaxed">
+                                  {audit.audit_summary}
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <span
-                    className={`ml-3 flex-shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize ${
-                      TASK_STATUS_BADGE[task.status] ??
-                      'bg-white/10 text-white/40 border-white/10'
-                    }`}
-                  >
-                    {task.status}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

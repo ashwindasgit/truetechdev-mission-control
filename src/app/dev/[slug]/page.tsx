@@ -35,7 +35,7 @@ export default async function DevPortalPage({ params }: Props) {
   if (session?.value === developer.id) {
     const { data: tasks } = await supabase
       .from('tasks')
-      .select('id, title, status, module_id, modules(name)')
+      .select('id, title, status, project_id, linked_pr_numbers, module_id, modules(name)')
       .eq('developer_id', developer.id)
       .order('created_at', { ascending: false });
 
@@ -49,6 +49,8 @@ export default async function DevPortalPage({ params }: Props) {
             id: t.id as string,
             title: t.title as string,
             status: t.status as string,
+            project_id: t.project_id as string,
+            linked_pr_numbers: (t.linked_pr_numbers as number[]) ?? [],
             module_name:
               ((t.modules as { name: string } | null)?.name) ?? 'Unassigned',
           }))
