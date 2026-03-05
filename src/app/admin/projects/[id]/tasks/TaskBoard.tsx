@@ -200,7 +200,7 @@ function TaskExpandedPanel({
 }: {
   task: Task;
   repoUrl: string | null;
-  auditMap: Record<number, PrAudit>;
+  auditMap: Record<string, PrAudit>;
   onUpdateCriteria: (taskId: string, criteria: string[]) => void;
   onUpdatePRs: (taskId: string, prs: number[]) => void;
 }) {
@@ -295,7 +295,7 @@ function TaskExpandedPanel({
         )}
         <div className="space-y-2 mb-2">
           {task.linked_pr_numbers?.map((pr) => {
-            const audit = auditMap[pr];
+            const audit = auditMap[String(pr)];
             const isAuditExpanded = expandedAudit === pr;
             return (
               <div key={pr}>
@@ -394,7 +394,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
   const [qaModalTask, setQaModalTask] = useState<Task | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
   const [devFilter, setDevFilter] = useState<string>('all');
-  const [auditMap, setAuditMap] = useState<Record<number, PrAudit>>({});
+  const [auditMap, setAuditMap] = useState<Record<string, PrAudit>>({});
 
   const activeDevelopers = developers.filter((d) => d.status === 'active');
 
@@ -405,11 +405,11 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
         return res.json();
       })
       .then((audits: PrAudit[]) => {
-        const map: Record<number, PrAudit> = {};
+        const map: Record<string, PrAudit> = {};
         for (const audit of audits) {
-          // Keep the most recent audit per PR number
-          if (!map[audit.pr_number]) {
-            map[audit.pr_number] = audit;
+          const key = String(audit.pr_number);
+          if (!map[key]) {
+            map[key] = audit;
           }
         }
         setAuditMap(map);

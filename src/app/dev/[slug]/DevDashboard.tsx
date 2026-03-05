@@ -51,7 +51,7 @@ export default function DevDashboard({
 }) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
-  const [auditMap, setAuditMap] = useState<Record<number, PrAudit>>({});
+  const [auditMap, setAuditMap] = useState<Record<string, PrAudit>>({});
   const [expandedAudit, setExpandedAudit] = useState<string | null>(null);
 
   // Fetch audits for all projects the developer has tasks in
@@ -66,11 +66,12 @@ export default function DevDashboard({
           .catch(() => [])
       )
     ).then((results) => {
-      const map: Record<number, PrAudit> = {};
+      const map: Record<string, PrAudit> = {};
       for (const audits of results) {
         for (const audit of audits as PrAudit[]) {
-          if (!map[audit.pr_number]) {
-            map[audit.pr_number] = audit;
+          const key = String(audit.pr_number);
+          if (!map[key]) {
+            map[key] = audit;
           }
         }
       }
@@ -187,7 +188,7 @@ export default function DevDashboard({
                     {prs.length > 0 && (
                       <div className="mt-2 space-y-1.5">
                         {prs.map((pr) => {
-                          const audit = auditMap[pr];
+                          const audit = auditMap[String(pr)];
                           const auditKey = `${task.id}-${pr}`;
                           const isExpanded = expandedAudit === auditKey;
                           return (
