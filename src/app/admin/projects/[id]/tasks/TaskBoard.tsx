@@ -22,6 +22,8 @@ interface PrAudit {
   review_note: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null;
+  merged_at: string | null;
+  merge_error?: string;
 }
 
 interface Developer {
@@ -390,23 +392,35 @@ function TaskExpandedPanel({
 
                     {/* Review workflow */}
                     {audit.review_action ? (
-                      <div className={`mt-2 p-2 rounded-lg border ${
-                        audit.review_action === 'approved'
-                          ? 'bg-emerald-500/10 border-emerald-500/20'
-                          : 'bg-amber-500/10 border-amber-500/20'
-                      }`}>
-                        <p className={`text-xs font-medium ${
-                          audit.review_action === 'approved' ? 'text-emerald-400' : 'text-amber-400'
-                        }`}>
-                          {audit.review_action === 'approved' ? '✓ Approved' : '⚠ Changes Requested'}
-                        </p>
-                        {audit.review_action === 'changes_requested' && audit.review_note && (
-                          <p className="text-white/50 text-xs mt-1">{audit.review_note}</p>
+                      <div className="mt-2 space-y-1.5">
+                        {audit.review_action === 'approved' ? (
+                          <div className="p-2 rounded-lg border bg-emerald-500/10 border-emerald-500/20">
+                            <p className="text-xs font-medium text-emerald-400">
+                              {audit.merged_at ? '✓ Approved & Merged' : '✓ Approved'}
+                            </p>
+                            <p className="text-white/20 text-[10px] mt-1">
+                              {new Date((audit.merged_at ?? audit.reviewed_at)!).toLocaleString()}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/20">
+                            <p className="text-xs font-medium text-amber-400">⚠ Changes Requested</p>
+                            {audit.review_note && (
+                              <p className="text-white/50 text-xs mt-1">{audit.review_note}</p>
+                            )}
+                            {audit.reviewed_at && (
+                              <p className="text-white/20 text-[10px] mt-1">
+                                {new Date(audit.reviewed_at).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
                         )}
-                        {audit.reviewed_at && (
-                          <p className="text-white/20 text-[10px] mt-1">
-                            {new Date(audit.reviewed_at).toLocaleString()}
-                          </p>
+                        {audit.review_action === 'approved' && !audit.merged_at && (
+                          <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/20">
+                            <p className="text-xs font-medium text-amber-400">
+                              ⚠ Auto-merge failed — merge manually on GitHub
+                            </p>
+                          </div>
                         )}
                       </div>
                     ) : (

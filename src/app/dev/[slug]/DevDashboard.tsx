@@ -29,6 +29,7 @@ interface PrAudit {
   passed: boolean;
   review_action: 'approved' | 'changes_requested' | null;
   review_note: string | null;
+  merged_at: string | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -219,6 +220,14 @@ export default function DevDashboard({
                                   <p className="text-white/50 text-xs leading-relaxed">
                                     {audit.audit_summary}
                                   </p>
+                                  {audit.merged_at && (
+                                    <div className="p-2 rounded-lg border bg-emerald-500/10 border-emerald-500/20">
+                                      <p className="text-xs font-medium text-emerald-400">✓ Merged</p>
+                                      <p className="text-white/20 text-[10px] mt-1">
+                                        {new Date(audit.merged_at).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  )}
                                   {audit.review_action === 'changes_requested' && (
                                     <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/20">
                                       <p className="text-xs font-medium text-amber-400">⚠ Changes Requested</p>
