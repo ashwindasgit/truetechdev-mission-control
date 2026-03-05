@@ -27,6 +27,8 @@ interface PrAudit {
   audit_summary: string;
   confidence_score: number;
   passed: boolean;
+  review_action: 'approved' | 'changes_requested' | null;
+  review_note: string | null;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -213,9 +215,19 @@ export default function DevDashboard({
                                 )}
                               </div>
                               {audit && isExpanded && (
-                                <p className="mt-1 ml-4 text-white/50 text-xs leading-relaxed">
-                                  {audit.audit_summary}
-                                </p>
+                                <div className="mt-1 ml-4 space-y-1.5">
+                                  <p className="text-white/50 text-xs leading-relaxed">
+                                    {audit.audit_summary}
+                                  </p>
+                                  {audit.review_action === 'changes_requested' && (
+                                    <div className="p-2 rounded-lg border bg-amber-500/10 border-amber-500/20">
+                                      <p className="text-xs font-medium text-amber-400">⚠ Changes Requested</p>
+                                      {audit.review_note && (
+                                        <p className="text-white/50 text-xs mt-1">{audit.review_note}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </div>
                           );
