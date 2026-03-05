@@ -217,6 +217,7 @@ function TaskExpandedPanel({
   const [reviewNote, setReviewNote] = useState('');
   const [showNoteInput, setShowNoteInput] = useState<string | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [localAuditOverrides, setLocalAuditOverrides] = useState<Record<string, PrAudit>>({});
 
   async function handleReview(auditId: string, action: 'approved' | 'changes_requested', note?: string) {
     setReviewLoading(true);
@@ -226,6 +227,8 @@ function TaskExpandedPanel({
       body: JSON.stringify({ review_action: action, review_note: note ?? null }),
     });
     if (res.ok) {
+      const updated: PrAudit = await res.json();
+      setLocalAuditOverrides((prev) => ({ ...prev, [String(updated.pr_number)]: updated }));
       onRefetchAudits();
       setShowNoteInput(null);
       setReviewNote('');
@@ -319,7 +322,7 @@ function TaskExpandedPanel({
         )}
         <div className="space-y-2 mb-2">
           {task.linked_pr_numbers?.map((pr) => {
-            const audit = auditMap[String(pr)];
+            const audit = localAuditOverrides[String(pr)] ?? auditMap[String(pr)];
             const isAuditExpanded = expandedAudit === pr;
             return (
               <div key={pr}>
