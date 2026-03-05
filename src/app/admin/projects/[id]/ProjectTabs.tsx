@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import EventFeed from '@/components/admin/EventFeed';
+import KnowledgeBaseTab from './KnowledgeBaseTab';
 
 interface Project {
   id: string;
@@ -55,6 +56,7 @@ const TABS = [
   { label: 'Overview', href: null },
   { label: 'Tasks', href: 'tasks' },
   { label: 'Feed', href: null },
+  { label: 'Knowledge Base', href: null },
   { label: 'Settings', href: null },
 ];
 
@@ -91,6 +93,7 @@ export default function ProjectTabs({ project, projectId, blockers, changeReques
 
       {activeTab === 'Overview' && <OverviewTab project={project} />}
       {activeTab === 'Feed' && <EventFeed projectId={project.id} />}
+      {activeTab === 'Knowledge Base' && <KnowledgeBaseTab projectId={project.id} />}
       {activeTab === 'Settings' && (
         <SettingsTab
           project={project}
