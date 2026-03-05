@@ -38,5 +38,50 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
+  // Auto-merge PR on GitHub when approved
+  if (review_action === "approved" && data.repo_url && data.pr_number) {
+    const match = data.repo_url.match(
+      /github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/
+    );
+    if (match) {
+      const [, owner, repo] = match;
+      let mergeError: string | undefined;
+      try {
+        const mergeRes = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/pulls/${data.pr_number}/merge`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              Accept: "application/vnd.github+json",
+            },
+            body: JSON.stringify({
+              merge_method: "squash",
+              commit_title:
+                "Approved and merged via Mission Control",
+            }),
+          }
+        );
+        if (mergeRes.ok) {
+          await supabase
+            .from("pr_audits")
+            .update({ merged_at: new Date().toISOString() })
+            .eq("id", auditId);
+          return NextResponse.json({
+            ...data,
+            merged_at: new Date().toISOString(),
+          });
+        }
+        const mergeBody = await mergeRes.json();
+        mergeError = mergeBody.message ?? `GitHub merge failed (${mergeRes.status})`;
+        console.error("GitHub merge failed:", mergeError);
+      } catch (err) {
+        mergeError = err instanceof Error ? err.message : "GitHub merge request failed";
+        console.error("GitHub merge error:", mergeError);
+      }
+      return NextResponse.json({ ...data, merge_error: mergeError });
+    }
+  }
+
   return NextResponse.json(data);
 }
