@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Copy, Pencil, KeyRound } from 'lucide-react';
 
 interface Developer {
   id: string;
@@ -25,7 +26,83 @@ export default function DeveloperList({ developers: initial }: { developers: Dev
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', email: '', github_username: '', stacks: '' });
+  const [editError, setEditError] = useState<string | null>(null);
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetForm, setResetForm] = useState({ password: '', confirm: '' });
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
   const router = useRouter();
+
+  function handleCopySlug(slug: string) {
+    navigator.clipboard.writeText(`https://mission-control.truetechpro.io/dev/${slug}`);
+    setCopiedSlug(slug);
+    setTimeout(() => setCopiedSlug(null), 2000);
+  }
+
+  function startEdit(dev: Developer) {
+    setEditingId(dev.id);
+    setEditForm({
+      name: dev.name,
+      email: dev.email,
+      github_username: dev.github_username,
+      stacks: dev.stacks?.join(', ') ?? '',
+    });
+    setEditError(null);
+    setResetId(null);
+  }
+
+  async function handleEditSave(id: string) {
+    setLoading(`edit-${id}`);
+    setEditError(null);
+    const res = await fetch(`/api/developers/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: editForm.name.trim(),
+        email: editForm.email.trim(),
+        github_username: editForm.github_username.trim(),
+        stacks: editForm.stacks.split(',').map((s) => s.trim()).filter(Boolean),
+      }),
+    });
+    if (res.ok) {
+      const updated: Developer = await res.json();
+      setDevelopers((prev) => prev.map((d) => (d.id === id ? updated : d)));
+      setEditingId(null);
+    } else {
+      const body = await res.json();
+      setEditError(body.error ?? 'Failed to update');
+    }
+    setLoading(null);
+  }
+
+  async function handleResetPassword(id: string) {
+    if (resetForm.password !== resetForm.confirm) {
+      setResetError('Passwords do not match');
+      return;
+    }
+    if (!resetForm.password.trim()) {
+      setResetError('Password is required');
+      return;
+    }
+    setLoading(`reset-${id}`);
+    setResetError(null);
+    const res = await fetch(`/api/developers/${id}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: resetForm.password.trim() }),
+    });
+    if (res.ok) {
+      setResetMsg(id);
+      setTimeout(() => { setResetMsg(null); setResetId(null); setResetForm({ password: '', confirm: '' }); }, 2000);
+    } else {
+      const body = await res.json();
+      setResetError(body.error ?? 'Failed to reset password');
+    }
+    setLoading(null);
+  }
 
   const [form, setForm] = useState({
     name: '',
@@ -224,11 +301,26 @@ export default function DeveloperList({ developers: initial }: { developers: Dev
             </thead>
             <tbody>
               {developers.map((dev) => (
-                <tr key={dev.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
+                <React.Fragment key={dev.id}>
+                <tr className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
                   <td className="px-6 py-4 text-white font-medium">{dev.name}</td>
                   <td className="px-6 py-4 text-white/60">{dev.email}</td>
                   <td className="px-6 py-4 text-white/60 hidden md:table-cell">{dev.github_username}</td>
-                  <td className="px-6 py-4 text-white/40 hidden lg:table-cell">{dev.slug}</td>
+                  <td className="px-6 py-4 hidden lg:table-cell">
+                    <button
+                      onClick={() => handleCopySlug(dev.slug)}
+                      className="flex items-center gap-1.5 text-white/40 hover:text-white cursor-pointer transition-colors"
+                    >
+                      {copiedSlug === dev.slug ? (
+                        <span className="text-emerald-400 text-xs">Copied!</span>
+                      ) : (
+                        <>
+                          <span>{dev.slug}</span>
+                          <Copy size={12} className="text-white/20" />
+                        </>
+                      )}
+                    </button>
+                  </td>
                   <td className="px-6 py-4 text-white/40 hidden lg:table-cell">
                     {dev.stacks?.length > 0 ? dev.stacks.join(', ') : '—'}
                   </td>
@@ -242,17 +334,102 @@ export default function DeveloperList({ developers: initial }: { developers: Dev
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {(dev.status === 'active' || dev.status === 'paused') && (
-                      <button
-                        onClick={() => handleOffboard(dev.id)}
-                        disabled={loading === dev.id}
-                        className="px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400/60 text-xs font-medium hover:text-red-400 hover:border-red-500/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                      >
-                        {loading === dev.id ? '...' : 'Offboard'}
-                      </button>
-                    )}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {(dev.status === 'active' || dev.status === 'paused') && (
+                        <>
+                          <button
+                            onClick={() => startEdit(dev)}
+                            className="p-1.5 rounded-lg border border-white/10 text-white/30 hover:text-white/60 hover:border-white/20 transition-colors"
+                            title="Edit"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                          <button
+                            onClick={() => { setResetId(resetId === dev.id ? null : dev.id); setEditingId(null); setResetForm({ password: '', confirm: '' }); setResetError(null); setResetMsg(null); }}
+                            className="p-1.5 rounded-lg border border-white/10 text-white/30 hover:text-white/60 hover:border-white/20 transition-colors"
+                            title="Reset Password"
+                          >
+                            <KeyRound size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleOffboard(dev.id)}
+                            disabled={loading === dev.id}
+                            className="px-3 py-1.5 rounded-lg border border-red-500/20 text-red-400/60 text-xs font-medium hover:text-red-400 hover:border-red-500/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            {loading === dev.id ? '...' : 'Offboard'}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
+                {/* Edit inline form */}
+                {editingId === dev.id && (
+                  <tr className="border-b border-white/5">
+                    <td colSpan={7} className="px-6 py-4">
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Name</label>
+                            <input type="text" value={editForm.name} onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Email</label>
+                            <input type="email" value={editForm.email} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">GitHub Username</label>
+                            <input type="text" value={editForm.github_username} onChange={(e) => setEditForm((f) => ({ ...f, github_username: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Stacks (comma-separated)</label>
+                            <input type="text" value={editForm.stacks} onChange={(e) => setEditForm((f) => ({ ...f, stacks: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                          </div>
+                        </div>
+                        {editError && <p className="text-red-400 text-xs">{editError}</p>}
+                        <div className="flex gap-2">
+                          <button onClick={() => handleEditSave(dev.id)} disabled={loading === `edit-${dev.id}`} className="px-3 py-1.5 text-xs font-medium bg-white text-black rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50">
+                            {loading === `edit-${dev.id}` ? 'Saving...' : 'Save'}
+                          </button>
+                          <button onClick={() => setEditingId(null)} className="px-3 py-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">Cancel</button>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {/* Reset password inline form */}
+                {resetId === dev.id && (
+                  <tr className="border-b border-white/5">
+                    <td colSpan={7} className="px-6 py-4">
+                      <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-3 max-w-md">
+                        {resetMsg === dev.id ? (
+                          <p className="text-emerald-400 text-sm font-medium">Password updated ✓</p>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs text-white/40 mb-1">New Password</label>
+                                <input type="password" value={resetForm.password} onChange={(e) => setResetForm((f) => ({ ...f, password: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                              </div>
+                              <div>
+                                <label className="block text-xs text-white/40 mb-1">Confirm Password</label>
+                                <input type="password" value={resetForm.confirm} onChange={(e) => setResetForm((f) => ({ ...f, confirm: e.target.value }))} className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-white/30" />
+                              </div>
+                            </div>
+                            {resetError && <p className="text-red-400 text-xs">{resetError}</p>}
+                            <div className="flex gap-2">
+                              <button onClick={() => handleResetPassword(dev.id)} disabled={loading === `reset-${dev.id}`} className="px-3 py-1.5 text-xs font-medium bg-white text-black rounded-lg hover:bg-white/90 transition-colors disabled:opacity-50">
+                                {loading === `reset-${dev.id}` ? 'Resetting...' : 'Reset Password'}
+                              </button>
+                              <button onClick={() => { setResetId(null); setResetForm({ password: '', confirm: '' }); setResetError(null); }} className="px-3 py-1.5 text-xs text-white/40 hover:text-white/60 transition-colors">Cancel</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
