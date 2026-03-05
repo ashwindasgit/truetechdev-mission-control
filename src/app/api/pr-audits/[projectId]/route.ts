@@ -1,11 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const PR_AUDIT_FIELDS =
   'id, project_id, pr_number, repo_url, audit_summary, confidence_score, passed, issues, raw_pr_title, raw_pr_author, created_at';
 
@@ -15,20 +10,20 @@ export async function GET(
 ) {
   const { projectId } = await params;
 
-  try {
-    const { data, error } = await supabase
-      .from('pr_audits')
-      .select(PR_AUDIT_FIELDS)
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  const { data, error } = await supabase
+    .from('pr_audits')
+    .select(PR_AUDIT_FIELDS)
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false });
 
-    return NextResponse.json(data);
-  } catch (err) {
-    console.error('GET /api/pr-audits/[projectId] error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
+
+  return NextResponse.json(data ?? []);
 }
