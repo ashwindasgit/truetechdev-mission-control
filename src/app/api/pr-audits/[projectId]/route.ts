@@ -16,7 +16,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from('pr_audits')
-    .select('id, project_id, pr_number, repo_url, audit_summary, confidence_score, passed, issues, raw_pr_title, raw_pr_author, created_at')
+    .select('id, project_id, pr_number, repo_url, audit_summary, confidence_score, passed, issues, raw_pr_title, raw_pr_author, created_at, review_action, review_note, reviewed_at, reviewed_by')
     .eq('project_id', projectId)
     .order('created_at', { ascending: false })
     .limit(100)
