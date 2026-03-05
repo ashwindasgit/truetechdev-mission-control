@@ -18,6 +18,10 @@ interface PrAudit {
   raw_pr_title: string | null;
   raw_pr_author: string | null;
   created_at: string;
+  review_action: 'approved' | 'changes_requested' | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 }
 
 interface Developer {
@@ -197,17 +201,37 @@ function TaskExpandedPanel({
   auditMap,
   onUpdateCriteria,
   onUpdatePRs,
+  onRefetchAudits,
 }: {
   task: Task;
   repoUrl: string | null;
   auditMap: Record<string, PrAudit>;
   onUpdateCriteria: (taskId: string, criteria: string[]) => void;
   onUpdatePRs: (taskId: string, prs: number[]) => void;
+  onRefetchAudits: () => void;
 }) {
   const [newCriterion, setNewCriterion] = useState('');
   const [newPR, setNewPR] = useState('');
   const [checkedItems, setCheckedItems] = useState<Set<number>>(new Set());
   const [expandedAudit, setExpandedAudit] = useState<number | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [showNoteInput, setShowNoteInput] = useState<string | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  async function handleReview(auditId: string, action: 'approved' | 'changes_requested', note?: string) {
+    setReviewLoading(true);
+    const res = await fetch(`/api/pr-audits/${auditId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ review_action: action, review_note: note ?? null }),
+    });
+    if (res.ok) {
+      onRefetchAudits();
+      setShowNoteInput(null);
+      setReviewNote('');
+    }
+    setReviewLoading(false);
+  }
 
   function toggleCheck(idx: number) {
     setCheckedItems((prev) => {
@@ -360,6 +384,67 @@ function TaskExpandedPanel({
                       Audited {new Date(audit.created_at).toLocaleString()}
                       {audit.raw_pr_author && ` · by @${audit.raw_pr_author}`}
                     </p>
+
+                    {/* Review workflow */}
+                    {audit.review_action ? (
+                      <div className={`mt-2 p-2 rounded-lg border ${
+                        audit.review_action === 'approved'
+                          ? 'bg-emerald-500/10 border-emerald-500/20'
+                          : 'bg-amber-500/10 border-amber-500/20'
+                      }`}>
+                        <p className={`text-xs font-medium ${
+                          audit.review_action === 'approved' ? 'text-emerald-400' : 'text-amber-400'
+                        }`}>
+                          {audit.review_action === 'approved' ? '✓ Approved' : '⚠ Changes Requested'}
+                        </p>
+                        {audit.review_action === 'changes_requested' && audit.review_note && (
+                          <p className="text-white/50 text-xs mt-1">{audit.review_note}</p>
+                        )}
+                        {audit.reviewed_at && (
+                          <p className="text-white/20 text-[10px] mt-1">
+                            {new Date(audit.reviewed_at).toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-2">
+                        <div className="flex gap-2">
+                          <button
+                            disabled={reviewLoading}
+                            onClick={() => handleReview(audit.id, 'approved')}
+                            className="px-3 py-1 text-xs font-medium rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            disabled={reviewLoading}
+                            onClick={() => setShowNoteInput(showNoteInput === audit.id ? null : audit.id)}
+                            className="px-3 py-1 text-xs font-medium rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25 transition-colors disabled:opacity-50"
+                          >
+                            Request Changes
+                          </button>
+                        </div>
+                        {showNoteInput === audit.id && (
+                          <div className="space-y-1.5">
+                            <textarea
+                              autoFocus
+                              rows={2}
+                              placeholder="Describe changes needed..."
+                              value={reviewNote}
+                              onChange={(e) => setReviewNote(e.target.value)}
+                              className="w-full px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/20 focus:outline-none focus:border-white/30 resize-none"
+                            />
+                            <button
+                              disabled={reviewLoading}
+                              onClick={() => handleReview(audit.id, 'changes_requested', reviewNote)}
+                              className="px-3 py-1 text-xs font-medium rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/20 hover:bg-amber-500/25 transition-colors disabled:opacity-50"
+                            >
+                              {reviewLoading ? 'Submitting...' : 'Submit'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -412,7 +497,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
     .sort((a, b) => a - b)
     .join(',');
 
-  useEffect(() => {
+  function refetchAudits() {
     fetch(`/api/pr-audits/${projectId}`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch audits');
@@ -429,6 +514,10 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
         setAuditMap(map);
       })
       .catch((err) => console.error('PR audits fetch error:', err));
+  }
+
+  useEffect(() => {
+    refetchAudits();
   }, [projectId, allLinkedPRs]);
 
   function toggleExpand(taskId: string) {
@@ -787,6 +876,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
                         auditMap={auditMap}
                         onUpdateCriteria={handleUpdateCriteria}
                         onUpdatePRs={handleUpdatePRs}
+                        onRefetchAudits={refetchAudits}
                       />
                     )}
                   </div>
