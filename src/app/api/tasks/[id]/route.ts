@@ -8,9 +8,9 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   if (!id) {
     return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
@@ -23,7 +23,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const allowedFields = ['qa_checks', 'status', 'pr_url'];
+  const allowedFields = ['qa_checks', 'status', 'pr_url', 'developer_id', 'acceptance_criteria', 'linked_pr_numbers'];
   const updates: Record<string, unknown> = {};
 
   for (const field of allowedFields) {
