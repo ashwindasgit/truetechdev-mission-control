@@ -40,6 +40,7 @@ export default function KnowledgeBaseTab({ projectId }: { projectId: string }) {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('');
   const [search, setSearch] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -136,6 +137,34 @@ export default function KnowledgeBaseTab({ projectId }: { projectId: string }) {
           ))}
         </div>
       )}
+      {/* Generate Continuation Package */}
+      <div className="pt-4">
+        <button
+          disabled={generating}
+          onClick={async () => {
+            setGenerating(true);
+            try {
+              const res = await fetch(`/api/continuation/${projectId}`, { method: 'POST' });
+              if (!res.ok) throw new Error('Failed to generate');
+              const { markdown, filename } = await res.json();
+              const blob = new Blob([markdown], { type: 'text/markdown' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = filename;
+              a.click();
+              URL.revokeObjectURL(url);
+            } catch (err) {
+              console.error('Continuation package error:', err);
+            } finally {
+              setGenerating(false);
+            }
+          }}
+          className="px-4 py-2 text-sm font-medium rounded-lg bg-white/5 border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/10 transition-colors disabled:opacity-50"
+        >
+          {generating ? 'Generating...' : 'Generate Continuation Package'}
+        </button>
+      </div>
     </div>
   );
 }
