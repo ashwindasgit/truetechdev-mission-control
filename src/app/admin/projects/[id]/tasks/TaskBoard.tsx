@@ -331,6 +331,13 @@ function TaskExpandedPanel({
                       ⏳ Pending
                     </span>
                   )}
+                  <button
+                    onClick={() => onUpdatePRs(task.id, (task.linked_pr_numbers ?? []).filter((n) => n !== pr))}
+                    className="ml-auto w-5 h-5 flex items-center justify-center rounded text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    title={`Remove PR #${pr}`}
+                  >
+                    &times;
+                  </button>
                 </div>
                 {/* Expanded audit detail */}
                 {audit && isAuditExpanded && (
@@ -398,6 +405,13 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
 
   const activeDevelopers = developers.filter((d) => d.status === 'active');
 
+  // Stable key that changes whenever any task's linked PRs change
+  const allLinkedPRs = modules
+    .flatMap((m) => m.tasks)
+    .flatMap((t) => t.linked_pr_numbers ?? [])
+    .sort((a, b) => a - b)
+    .join(',');
+
   useEffect(() => {
     fetch(`/api/pr-audits/${projectId}`)
       .then((res) => {
@@ -415,7 +429,7 @@ export default function TaskBoard({ projectId, initialModules, developers, repoU
         setAuditMap(map);
       })
       .catch((err) => console.error('PR audits fetch error:', err));
-  }, [projectId]);
+  }, [projectId, allLinkedPRs]);
 
   function toggleExpand(taskId: string) {
     setExpandedTasks((prev) => {
