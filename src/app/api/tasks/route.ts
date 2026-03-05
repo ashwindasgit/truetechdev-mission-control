@@ -6,6 +6,25 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export async function GET(req: NextRequest) {
+  const projectId = req.nextUrl.searchParams.get('projectId');
+  if (!projectId) {
+    return NextResponse.json({ error: 'projectId query param is required' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('id, title, status, qa_checks')
+    .eq('project_id', projectId)
+    .limit(200);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ tasks: data ?? [] });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

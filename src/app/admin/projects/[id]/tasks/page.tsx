@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
+import { notFound } from 'next/navigation';
 import TaskBoard from './TaskBoard';
+import ProjectTabBar from '../ProjectTabBar';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -8,6 +10,14 @@ interface Props {
 export default async function TasksPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('id, name, status')
+    .eq('id', id)
+    .single();
+
+  if (!project) notFound();
 
   const { data: modules } = await supabase
     .from('modules')
@@ -21,18 +31,26 @@ export default async function TasksPage({ params }: Props) {
     .select('id, name, github_username, status')
     .order('name', { ascending: true });
 
-  const { data: project } = await supabase
-    .from('projects')
-    .select('github_repo_url')
-    .eq('id', id)
-    .single();
-
   return (
-    <TaskBoard
-      projectId={id}
-      initialModules={modules ?? []}
-      developers={developers ?? []}
-      repoUrl={project?.github_repo_url ?? null}
-    />
+    <div>
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-1">
+          <span
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+              project.status === 'active' ? 'bg-emerald-400' : 'bg-white/20'
+            }`}
+          />
+          <h1 className="text-2xl font-bold text-white">{project.name}</h1>
+        </div>
+        <p className="text-white/40 text-sm ml-[22px] capitalize">{project.status}</p>
+      </div>
+      <ProjectTabBar projectId={id} activeTab="Tasks" />
+      <TaskBoard
+        projectId={id}
+        initialModules={modules ?? []}
+        developers={developers ?? []}
+        repoUrl={null}
+      />
+    </div>
   );
 }

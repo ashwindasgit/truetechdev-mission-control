@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import EventFeed from '@/components/admin/EventFeed';
 import KnowledgeBaseTab from './KnowledgeBaseTab';
+import ProjectTabBar from './ProjectTabBar';
 
 interface Project {
   id: string;
@@ -52,44 +53,20 @@ interface Props {
   changeRequests: ChangeRequest[];
 }
 
-const TABS = [
-  { label: 'Overview', href: null },
-  { label: 'Tasks', href: 'tasks' },
-  { label: 'Feed', href: null },
-  { label: 'Knowledge Base', href: null },
-  { label: 'Settings', href: null },
-];
+const TAB_MAP: Record<string, string> = {
+  feed: 'Feed',
+  knowledge: 'Knowledge Base',
+  settings: 'Settings',
+};
 
 export default function ProjectTabs({ project, projectId, blockers, changeRequests }: Props) {
-  const [activeTab, setActiveTab] = useState('Overview');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab') ?? '';
+  const activeTab = TAB_MAP[tabParam] ?? 'Overview';
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-white/10 mb-8">
-        {TABS.map((tab) =>
-          tab.href ? (
-            <Link
-              key={tab.label}
-              href={`/admin/projects/${projectId}/${tab.href}`}
-              className="px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px text-white/40 border-transparent hover:text-white/70"
-            >
-              {tab.label}
-            </Link>
-          ) : (
-            <button
-              key={tab.label}
-              onClick={() => setActiveTab(tab.label)}
-              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
-                activeTab === tab.label
-                  ? 'text-white border-white'
-                  : 'text-white/40 border-transparent hover:text-white/70'
-              }`}
-            >
-              {tab.label}
-            </button>
-          )
-        )}
-      </div>
+      <ProjectTabBar projectId={projectId} activeTab={activeTab} />
 
       {activeTab === 'Overview' && <OverviewTab project={project} />}
       {activeTab === 'Feed' && <EventFeed projectId={project.id} />}
@@ -108,6 +85,69 @@ export default function ProjectTabs({ project, projectId, blockers, changeReques
 /* ────────────────────────────────────────────────────── Overview Tab */
 
 function OverviewTab({ project }: { project: Project }) {
+  const [uptime, setUptime] = useState<{ value: string; note: string }>({ value: '—', note: 'Loading...' });
+  const [errors, setErrors] = useState<{ value: string; note: string }>({ value: '—', note: 'Loading...' });
+  const [qaRate, setQaRate] = useState<{ value: string; note: string }>({ value: '—', note: 'Loading...' });
+
+  useEffect(() => {
+    // Fetch events for health metrics
+    fetch(`/api/events?projectId=${project.id}`)
+      .then((res) => res.json())
+      .then(({ events }: { events: { provider: string; event_type: string; severity: string }[] }) => {
+        // Uptime: check betteruptime events
+        const btEvents = events.filter((e) => e.provider === 'betteruptime');
+        if (btEvents.length === 0) {
+          setUptime({ value: '—', note: 'Connect Better Uptime' });
+        } else {
+          const downs = btEvents.filter((e) => e.event_type === 'site_down').length;
+          const recoveries = btEvents.filter((e) => e.event_type === 'site_recovered').length;
+          if (downs === 0) {
+            setUptime({ value: '100%', note: `${btEvents.length} events tracked` });
+          } else {
+            const incidents = Math.max(downs, recoveries);
+            setUptime({ value: `${incidents} incident${incidents !== 1 ? 's' : ''}`, note: `${downs} down, ${recoveries} recovered` });
+          }
+        }
+
+        // Errors: sentry events
+        const sentryErrors = events.filter((e) => e.provider === 'sentry' && e.event_type === 'error');
+        const sentryResolved = events.filter((e) => e.provider === 'sentry' && e.event_type === 'error_resolved');
+        const hasSentry = events.some((e) => e.provider === 'sentry');
+        if (!hasSentry) {
+          setErrors({ value: '—', note: 'Connect Sentry' });
+        } else {
+          const openCount = Math.max(0, sentryErrors.length - sentryResolved.length);
+          setErrors({
+            value: String(openCount),
+            note: openCount === 0 ? 'All clear' : `${sentryErrors.length} total, ${sentryResolved.length} resolved`,
+          });
+        }
+      })
+      .catch(() => {
+        setUptime({ value: '—', note: 'Failed to load' });
+        setErrors({ value: '—', note: 'Failed to load' });
+      });
+
+    // QA Pass Rate: fetch tasks
+    fetch(`/api/tasks?projectId=${project.id}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!data) { setQaRate({ value: '—', note: 'No QA data yet' }); return; }
+        const tasks = Array.isArray(data) ? data : data.tasks ?? [];
+        const withQA = tasks.filter((t: { qa_checks?: Record<string, boolean> }) => t.qa_checks && Object.keys(t.qa_checks).length > 0);
+        if (withQA.length === 0) {
+          setQaRate({ value: '—', note: 'No QA data yet' });
+        } else {
+          const passed = withQA.filter((t: { qa_checks: Record<string, boolean> }) =>
+            Object.values(t.qa_checks).every(Boolean)
+          ).length;
+          const pct = Math.round((passed / withQA.length) * 100);
+          setQaRate({ value: `${pct}%`, note: `${passed}/${withQA.length} tasks passed` });
+        }
+      })
+      .catch(() => setQaRate({ value: '—', note: 'No QA data yet' }));
+  }, [project.id]);
+
   return (
     <div className="space-y-6">
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
@@ -137,9 +177,9 @@ function OverviewTab({ project }: { project: Project }) {
           Health Metrics
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <MetricCard label="Uptime (30d)" value="—" note="Connect Better Uptime" />
-          <MetricCard label="Open Errors" value="—" note="Connect Sentry" />
-          <MetricCard label="QA Pass Rate" value="—" note="Add tasks to track" />
+          <MetricCard label="Uptime (30d)" value={uptime.value} note={uptime.note} />
+          <MetricCard label="Open Errors" value={errors.value} note={errors.note} />
+          <MetricCard label="QA Pass Rate" value={qaRate.value} note={qaRate.note} />
         </div>
       </div>
     </div>

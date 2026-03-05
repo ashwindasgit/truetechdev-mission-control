@@ -33,7 +33,7 @@ export default async function ProjectDetailPage({ params }: Props) {
     .order('created_at', { ascending: false });
 
   return (
-    <div className="p-8">
+    <div>
 
       {/* Page Header */}
       <div className="mb-8">
