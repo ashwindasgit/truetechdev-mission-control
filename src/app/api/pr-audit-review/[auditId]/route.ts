@@ -10,9 +10,9 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ auditId: string }> }
 ) {
-  const { id } = await params;
+  const { auditId } = await params;
   const { review_action, review_note } = await request.json();
 
   if (review_action !== "approved" && review_action !== "changes_requested") {
@@ -30,7 +30,7 @@ export async function PATCH(
       reviewed_at: new Date().toISOString(),
       reviewed_by: "admin",
     })
-    .eq("id", id)
+    .eq("id", auditId)
     .select()
     .single();
 

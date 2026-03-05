@@ -220,7 +220,7 @@ function TaskExpandedPanel({
 
   async function handleReview(auditId: string, action: 'approved' | 'changes_requested', note?: string) {
     setReviewLoading(true);
-    const res = await fetch(`/api/pr-audits/${auditId}`, {
+    const res = await fetch(`/api/pr-audit-review/${auditId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ review_action: action, review_note: note ?? null }),
